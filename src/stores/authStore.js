@@ -3,7 +3,8 @@ import { authApi } from '@/services/api';
 import { SUPER_ADMIN, FARM_ADMIN, FARM_STAFF, FINANCE_STAFF } from '@/constants/roles';
 
 const TOKEN_KEY = 'token';
-const MOCK_KEY = 'mockRole'; // TODO: ลบตอนต่อ backend จริง
+const USER_KEY = 'user';
+const MOCK_KEY = 'mockRole';
 
 const MOCK_USERS = {
   [SUPER_ADMIN]: { user_id: 1, username: 'superadmin_farm', user_role: SUPER_ADMIN, farm_id: null },
@@ -14,9 +15,10 @@ const MOCK_USERS = {
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    // refresh หน้าแล้ว role ปลอมยังอยู่
-    user: MOCK_USERS[sessionStorage.getItem(MOCK_KEY)] ?? null,
-    token: localStorage.getItem(TOKEN_KEY) || null,
+    user: JSON.parse(localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY) || 'null') 
+          ?? MOCK_USERS[sessionStorage.getItem(MOCK_KEY)] 
+          ?? null,
+    token: localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null,
   }),
 
   getters: {
@@ -35,7 +37,43 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem(TOKEN_KEY, token);
     },
 
-    // TODO: ลบตอนต่อ backend จริง
+    // เก็บ session หลังล็อกอิน: remember=true → localStorage, false → sessionStorage
+    setLoginSession({ token, user }, remember = true) {
+      const storage = remember ? localStorage : sessionStorage;
+      const other = remember ? sessionStorage : localStorage;
+
+      this.token = token;
+      this.user = user;
+
+      other.removeItem(TOKEN_KEY);
+      other.removeItem(USER_KEY);
+      storage.setItem(TOKEN_KEY, token);
+      storage.setItem(USER_KEY, JSON.stringify(user));
+    },
+
+    // กู้ session หลัง refresh หน้า
+    restoreSession() {
+      const token = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+      const raw = localStorage.getItem(USER_KEY) ?? sessionStorage.getItem(USER_KEY);
+      if (!token || !raw) return;
+      try {
+        this.token = token;
+        this.user = JSON.parse(raw);
+      } catch {
+        /* ข้อมูลเสีย ปล่อยผ่าน */
+      }
+    },
+
+    // ล้าง session ทั้งสอง storage
+    clearLoginSession() {
+      this.token = null;
+      this.user = null;
+      [TOKEN_KEY, USER_KEY].forEach((k) => {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+      });
+    },
+
     setMockRole(role) {
       this.user = MOCK_USERS[role];
       sessionStorage.setItem(MOCK_KEY, role);
@@ -43,7 +81,19 @@ export const useAuthStore = defineStore('auth', {
 
     async fetchProfile() {
       const res = await authApi.me();
-      this.user = res.data.data;
+      const rawUser = res.data.data;
+      
+      // Map จาก camelCase ของ backend เป็น snake_case
+      this.user = {
+        user_id: rawUser.userId ?? rawUser.user_id,
+        username: rawUser.username,
+        user_role: rawUser.role ?? rawUser.user_role,
+        farm_id: rawUser.farmId ?? rawUser.farm_id,
+      };
+
+      const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
+      storage.setItem(USER_KEY, JSON.stringify(this.user));
+
       return this.user;
     },
 
@@ -55,7 +105,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async logout() {
-      try { await authApi.logout(); } catch { /* ignore */ } finally { this.clearSession(); }
+      try { await authApi.logout(); } catch { /* ignore */ } finally { this.clearLoginSession(); }
     },
   },
 });
