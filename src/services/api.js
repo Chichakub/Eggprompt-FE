@@ -23,9 +23,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
-    const isLoginCall = error.config?.url?.includes('/auth/login');
+    const url = error.config?.url || '';
+    const isPublicAuthCall =
+      url.includes('/auth/login') ||
+      url.includes('/auth/register');
 
-    if (status === 401 && !isLoginCall) {
+    if (status === 401 && !isPublicAuthCall) {
       localStorage.removeItem('token');
       sessionStorage.removeItem('inspectedFarm');
       if (window.location.pathname !== '/login') {
@@ -39,6 +42,10 @@ api.interceptors.response.use(
 // ---------- Auth ----------
 export const authApi = {
   login: (payload) => api.post('/api/v1/auth/login', payload), // { username, password }
+   register: (payload) =>
+    api.post('/api/v1/auth/register', payload, {
+      timeout: 15000,
+    }),
   me: () => api.get('/api/v1/auth/me'), // C2-54
   logout: () => api.post('/api/v1/auth/logout'), // C2-53
 };
