@@ -5,7 +5,6 @@
 
 import axios from 'axios';
 import { useAuthStore } from '@/stores/authStore';
-import router from '@/router';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
@@ -13,7 +12,8 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  if (config.url?.endsWith('/auth/login')) return config;
+  const token = useAuthStore().token || localStorage.getItem('token') || sessionStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -26,8 +26,7 @@ api.interceptors.response.use(
     const isLoginCall = error.config?.url?.includes('/auth/login');
 
     if (status === 401 && !isLoginCall) {
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('inspectedFarm');
+      useAuthStore().clearLoginSession();
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }

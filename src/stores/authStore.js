@@ -1,24 +1,16 @@
 import { defineStore } from 'pinia';
 import { authApi } from '@/services/api';
-import { SUPER_ADMIN, FARM_ADMIN, FARM_STAFF, FINANCE_STAFF } from '@/constants/roles';
+import { ALL_ROLES, SUPER_ADMIN, FARM_ADMIN, FARM_STAFF, FINANCE_STAFF } from '@/constants/roles';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
-const MOCK_KEY = 'mockRole';
-
-const MOCK_USERS = {
-  [SUPER_ADMIN]: { user_id: 1, username: 'superadmin_farm', user_role: SUPER_ADMIN, farm_id: null },
-  [FARM_ADMIN]: { user_id: 2, username: 'farmadmin_01', user_role: FARM_ADMIN, farm_id: 1 },
-  [FARM_STAFF]: { user_id: 3, username: 'farmstaff_01', user_role: FARM_STAFF, farm_id: 1 },
-  [FINANCE_STAFF]: { user_id: 4, username: 'finance_01', user_role: FINANCE_STAFF, farm_id: 1 },
-};
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: JSON.parse(localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY) || 'null') 
-          ?? MOCK_USERS[sessionStorage.getItem(MOCK_KEY)] 
-          ?? null,
-    token: localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null,
+    // ดึงค่าจาก Storage อย่างเดียว ไม่มี Fallback ไปหา Mock แล้ว
+    user: null,
+    token: null,
+    profileLoaded: false,
   }),
 
   getters: {
@@ -31,10 +23,8 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    setSession({ token, user = null }) {
-      this.token = token;
-      this.user = user;
-      localStorage.setItem(TOKEN_KEY, token);
+    setSession(session) {
+      this.setLoginSession(session);
     },
 
     // เก็บ session หลังล็อกอิน: remember=true → localStorage, false → sessionStorage
@@ -42,6 +32,7 @@ export const useAuthStore = defineStore('auth', {
       const storage = remember ? localStorage : sessionStorage;
       const other = remember ? sessionStorage : localStorage;
 
+      this.profileLoaded = false;
       this.token = token;
       this.user = user;
 
@@ -51,38 +42,43 @@ export const useAuthStore = defineStore('auth', {
       storage.setItem(USER_KEY, JSON.stringify(user));
     },
 
-    // กู้ session หลัง refresh หน้า
     restoreSession() {
-      const token = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
-      const raw = localStorage.getItem(USER_KEY) ?? sessionStorage.getItem(USER_KEY);
-      if (!token || !raw) return;
-      try {
-        this.token = token;
-        this.user = JSON.parse(raw);
-      } catch {
-        /* ข้อมูลเสีย ปล่อยผ่าน */
-      }
+        const token = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+        const raw = localStorage.getItem(USER_KEY) ?? sessionStorage.getItem(USER_KEY);
+        if (!token || !raw) {
+            this.clearLoginSession();   // ข้อมูลไม่ครบ → ล้างทิ้ง กันสถานะค้าง
+            return;
+        }
+        try {
+            this.profileLoaded = false;
+            this.token = token;
+            this.user = JSON.parse(raw);
+        } catch {
+            this.clearLoginSession();
+        }
     },
 
     // ล้าง session ทั้งสอง storage
     clearLoginSession() {
+      this.profileLoaded = false;
       this.token = null;
       this.user = null;
+      sessionStorage.removeItem('inspectedFarm');
       [TOKEN_KEY, USER_KEY].forEach((k) => {
         localStorage.removeItem(k);
         sessionStorage.removeItem(k);
       });
     },
 
-    setMockRole(role) {
-      this.user = MOCK_USERS[role];
-      sessionStorage.setItem(MOCK_KEY, role);
-    },
-
+    // ดึงข้อมูล Profile ล่าสุดจาก API
     async fetchProfile() {
       const res = await authApi.me();
-      const rawUser = res.data.data;
-      
+      const rawUser = res.data;
+      if (!rawUser || !ALL_ROLES.includes(rawUser.role ?? rawUser.user_role)) {
+        this.clearLoginSession();
+        throw new Error('Invalid user profile');
+      }
+
       // Map จาก camelCase ของ backend เป็น snake_case
       this.user = {
         user_id: rawUser.userId ?? rawUser.user_id,
@@ -94,18 +90,19 @@ export const useAuthStore = defineStore('auth', {
       const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
       storage.setItem(USER_KEY, JSON.stringify(this.user));
 
+      this.profileLoaded = true;
       return this.user;
     },
 
-    clearSession() {
-      this.token = null;
-      this.user = null;
-      localStorage.removeItem(TOKEN_KEY);
-      sessionStorage.removeItem(MOCK_KEY);
-    },
-
+    // ใช้ตอนเรียก Logout
     async logout() {
-      try { await authApi.logout(); } catch { /* ignore */ } finally { this.clearLoginSession(); }
+      try {
+        await authApi.logout();
+      } catch {
+        /* ignore */
+      } finally {
+        this.clearLoginSession();
+      }
     },
   },
 });

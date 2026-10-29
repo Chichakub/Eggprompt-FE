@@ -50,8 +50,15 @@ const showNotifications = computed(
 );
 const notificationCount = ref(0); // TODO: ดึงจาก API การแจ้งเตือนเมื่อมี
 
-// เปิด/ปิดกลุ่มเมนู (เริ่มต้นเปิดทั้งหมดตามดีไซน์)
-const closedGroups = ref(new Set());
+// เปิด/ปิดกลุ่มเมนู (เริ่มต้นให้พับปิดไว้ก่อนทั้งหมด)
+const closedGroups = ref(
+  new Set(
+    menu.value
+      .filter((item) => item.type !== 'link' && item.key)
+      .map((item) => item.key)
+  )
+);
+
 const isOpen = (key) => !closedGroups.value.has(key);
 function toggleGroup(key) {
   if (closedGroups.value.has(key)) closedGroups.value.delete(key);
@@ -101,7 +108,7 @@ async function handleLogout() {
         <Bell :size="16" />
         <i v-if="notificationCount" class="notice-dot" />
       </span>
-      <strong>การแจ้งเตือน</strong>
+      <strong class="notice-title">การแจ้งเตือน</strong>
       <span v-if="notificationCount" class="notice-badge">{{ notificationCount }} ใหม่</span>
       <span class="notice-more">ดูทั้งหมด ›</span>
     </router-link>
@@ -197,14 +204,15 @@ async function handleLogout() {
 .brand-text {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 .brand-text strong {
-  font-size: 17px;
+  font-size: 16px;
+  font-weight: 700;
   color: #fff;
 }
 .brand-text small {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--sb-muted);
 }
 
@@ -213,7 +221,7 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px;
+  padding: 10px 12px;
   border: 1px solid var(--sb-surface);
   border-radius: 12px;
   background: var(--sb-surface);
@@ -234,18 +242,21 @@ async function handleLogout() {
 }
 .profile-text strong {
   color: #fff;
+  font-size: 14px;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .role-badge {
   align-self: flex-start;
-  padding: 1px 10px;
+  padding: 2px 10px;
   border-radius: 999px;
   background: var(--sb-accent);
   color: #3b2a05;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 /* ---------- Notification ---------- */
@@ -278,23 +289,29 @@ async function handleLogout() {
   border-radius: 50%;
   background: var(--sb-accent);
 }
+.notice-title {
+  font-size: 13px;
+  font-weight: 600;
+}
 .notice-badge {
-  padding: 0 8px;
+  padding: 1px 8px;
   border-radius: 999px;
   background: rgba(233, 162, 59, 0.25);
   color: var(--sb-accent);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
 }
 .notice-more {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--sb-muted);
 }
 
 /* ---------- Menu ---------- */
 .section-label {
-  margin: 4px 4px 0;
+  margin: 6px 4px 2px;
   font-size: 12px;
+  font-weight: 500;
   color: var(--sb-muted);
 }
 .menu,
@@ -320,7 +337,8 @@ async function handleLogout() {
   border-radius: 12px;
   background: transparent;
   color: var(--sb-text);
-  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -330,7 +348,7 @@ async function handleLogout() {
 .sub-link:hover {
   background: var(--sb-surface);
 }
-.group-btn {
+.group-btn:hover {
   background: var(--sb-surface);
   font-weight: 600;
 }
@@ -352,6 +370,8 @@ async function handleLogout() {
   padding: 8px 12px;
   border-radius: 10px;
   color: var(--sb-text);
+  font-size: 13px;
+  font-weight: 400;
   text-decoration: none;
 }
 
@@ -373,7 +393,7 @@ async function handleLogout() {
   border-radius: 12px;
   background: transparent;
   color: #f4a7a7;
-  font: inherit;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }

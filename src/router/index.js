@@ -176,40 +176,7 @@ const router = createRouter({
   routes,
 });
 
-// TODO: ตอนต่อ backend ให้ใช้ guard เดิมแทน (เช็ก token + fetchProfile)
-const DEV_PATHS = {
-  "/superadmin": SA,
-  "/farmadmin": FA,
-  "/farmstaff": FS,
-  "/financestaff": FIN,
-};
-
-//router.beforeEach((to) => {
-//if (to.meta.public) return true;
-
-//const auth = useAuthStore();
-
-// เข้า 4 path นี้ = สลับเป็น role นั้นทันที
-//const devRole = DEV_PATHS[to.path];
-// if (devRole) {
-// auth.setMockRole(devRole);
-//return true;
-//}
-
-// ยังไม่เคยเลือก role → ไปหน้า superadmin
-//if (!auth.user) return "/superadmin";
-
-// role ไม่มีสิทธิ์ → กลับหน้าแรกของ role
-//const { roles } = to.meta;
-//if (roles && !roles.includes(auth.userRole)) {
-//return defaultPathFor(auth.userRole);
-//}
-
-// return true;
-//});
-
-// ถอด from, next ออก เหลือแค่ (to)
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
   // กู้ Session จาก storage เสมอหาก State หลุดตอน Refresh หน้า
@@ -217,21 +184,26 @@ router.beforeEach((to) => {
     auth.restoreSession();
   }
 
-  // เข้า 4 path นี้ = สลับเป็น role นั้นทันที (สำหรับ DEV)
-  const devRole = DEV_PATHS[to.path];
-  if (devRole && import.meta.env.DEV) {
-    auth.setMockRole(devRole);
-    return true;
+  if (auth.token && !auth.profileLoaded) {
+    try {
+      await auth.fetchProfile();
+    } catch (error) {
+      if (!auth.token || [401, 403, 404].includes(error.response?.status)) {
+        auth.clearLoginSession();
+      } else {
+        // A network/server failure must not authorize a protected page.
+        if (to.meta.public) return true;
+        return { name: 'login', query: { redirect: to.fullPath } };
+      }
+    }
   }
 
-  // หน้า Public (Login, Register)
   if (to.meta.public) {
-    // ล็อกอินอยู่แล้ว พยายามเข้าหน้า Login → เด้งไปหน้าแรกตาม Role
-    if (auth.isAuthenticated) {
-      return defaultPathFor(auth.userRole);
+    if (auth.isAuthenticated && auth.profileLoaded && auth.userRole) {
+        return defaultPathFor(auth.userRole);
     }
     return true;
-  }
+}
 
   // ยังไม่ล็อกอิน → ไปหน้า Login พร้อมเก็บ path เดิมไว้
   if (!auth.isAuthenticated) {
