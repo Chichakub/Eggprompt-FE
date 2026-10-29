@@ -63,8 +63,9 @@ async function submit() {
         // ===== กรณีสำเร็จ =====
         modalStore.openSuccess({
             title: 'ลงทะเบียนสำเร็จ',
-            message: 'ขั้นตอนถัดไป : ตั้งค่าฟาร์มใหม่',
-            confirmText: 'ตกลง',
+            message: 'กรุณาเข้าสู่ระบบเพื่อตั้งค่าฟาร์มและเริ่มต้นใช้งาน',
+            confirmText: 'เข้าสู่ระบบ',
+            confirmTo: '/login',
         });
     } catch (error) {
         // ===== กรณีไม่สำเร็จ =====
