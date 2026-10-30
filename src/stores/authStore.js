@@ -16,6 +16,9 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthenticated: (state) => !!state.token,
     userRole: (state) => state.user?.user_role ?? null,
+    isFarmSetupRequired: (state) =>
+    state.user?.user_role === FARM_ADMIN &&
+    state.user?.farm_id == null,
     isSuperAdmin() { return this.userRole === SUPER_ADMIN; },
     isFarmAdmin() { return this.userRole === FARM_ADMIN; },
     isFarmStaff() { return this.userRole === FARM_STAFF; },

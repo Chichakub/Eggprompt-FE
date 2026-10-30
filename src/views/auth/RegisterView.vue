@@ -10,6 +10,7 @@ import {
     ArrowRight,
 } from 'lucide-vue-next';
 import { useModalStore } from '@/stores/modalStore';
+import { authApi } from '@/services/api';
 
 const modalStore = useModalStore();
 
@@ -23,7 +24,6 @@ const form = reactive({
 const showPassword = ref(false);
 const errorMessage = ref('');
 const isSubmitting = ref(false);
-const demoResult = 'success';
 
 async function submit() {
     if (isSubmitting.value) return;
@@ -53,27 +53,37 @@ async function submit() {
     isSubmitting.value = true;
 
     try {
-        // ===== จำลองผลก่อนมี Backend =====
-        // เมื่อต่อ API จริง ให้ลบส่วนจำลองนี้
-        // แล้วใส่คำสั่ง await เรียก API แทน
-        if (demoResult === 'fail') {
-            throw new Error('DEMO_REGISTER_FAILED');
-        }
+        await authApi.register({
+            username: form.username.trim(),
+            password: form.password,
+            email: form.email.trim(),
+            accepted: form.accepted,
+        });
 
         // ===== กรณีสำเร็จ =====
         modalStore.openSuccess({
             title: 'ลงทะเบียนสำเร็จ',
-            message: 'ขั้นตอนถัดไป : ตั้งค่าฟาร์มใหม่',
-            confirmText: 'ตกลง',
+            message: 'กรุณาเข้าสู่ระบบเพื่อตั้งค่าฟาร์มและเริ่มต้นใช้งาน',
+            confirmText: 'เข้าสู่ระบบ',
+            confirmTo: '/login',
         });
     } catch (error) {
         // ===== กรณีไม่สำเร็จ =====
         let message = 'ไม่สามารถลงทะเบียนได้ กรุณาลองอีกครั้ง';
 
-        if (error.message === 'DEMO_REGISTER_FAILED') {
-            message = 'ตัวอย่างการลงทะเบียนไม่สำเร็จ กรุณาลองอีกครั้ง';
+        const status = error.response?.status;
+        const backendMessage = error.response?.data?.message;
+
+        if (error.code === 'ECONNABORTED') {
+            message = 'เซิร์ฟเวอร์ตอบกลับช้า บัญชีอาจถูกสร้างแล้ว กรุณาลองเข้าสู่ระบบก่อนสมัครซ้ำ';
         } else if (!error.response) {
-            message = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองอีกครั้ง';
+            message = 'การเชื่อมต่อขัดข้อง กรุณาตรวจสอบก่อนลองอีกครั้ง';
+        } else if (
+            (status === 400 || status === 409) &&
+            typeof backendMessage === 'string' &&
+            backendMessage
+        ) {
+            message = backendMessage;
         }
 
         modalStore.openError({
