@@ -1,6 +1,3 @@
-// src/router/index.js
-// C2-49: Route Guard + จำกัดหน้าตาม Role
-
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import {
@@ -12,7 +9,6 @@ import {
   defaultPathFor,
 } from "@/constants/roles";
 
-// หน้าที่ยังไม่ได้ทำ ใช้ placeholder ไปก่อน แล้วค่อยสลับเป็น view จริงตามคอมเมนต์ท้ายบรรทัด
 const Placeholder = () => import("@/views/PlaceholderView.vue");
 
 const page = (path, name, title, roles, opts = {}) => ({
@@ -28,9 +24,6 @@ const page = (path, name, title, roles, opts = {}) => ({
 });
 
 const routes = [
-  // ---------- ก่อนล็อกอิน (AuthLayout) ----------
-  // ปรับ path ของไฟล์ให้ตรงกับโปรเจกต์จริง
-   // หน้าแรก: ยังไม่ล็อกอิน → /login, ล็อกอินแล้ว → หน้าแรกตาม role
   {
     path: "/",
     name: "home",
@@ -60,60 +53,51 @@ const routes = [
     ],
   },
 
-  // ---------- หลังล็อกอิน (MainLayout) ----------
   {
     path: "/",
     component: () => import("@/layouts/MainLayout.vue"),
     children: [
-      //{ path: "", name: "home", redirect: "/superadmin" },
 
-      // ---- หน้าแรกของแต่ละ role (ชั่วคราว) ----
       page("/superadmin", "superadmin", "หน้าแรก Super Admin", [SA]),
       page("/farmadmin", "farmadmin", "หน้าแรก Farm Admin", [FA]),
       page("/farmstaff", "farmstaff", "หน้าแรก Farm Staff", [FS]),
       page("/financestaff", "financestaff", "หน้าแรก Finance Staff", [FIN]),
 
-      // Super Admin (ไม่ผูกกับฟาร์ม)
       page("/farms", "all-farms", "ฟาร์มทั้งหมด", [SA], {
         leavesInspection: true,
-      }), // AllFarmsView
+      }), 
       page("/farms/new", "new-farm", "ลงทะเบียนฟาร์มใหม่", [SA], {
         leavesInspection: true,
-      }), // NewFarmView
+      }), 
 
-      // ทุก role
-      page("/account", "account", "บัญชีและการตั้งค่า", ALL_ROLES), // UserProfileView
+      page("/account", "account", "บัญชีและการตั้งค่า", ALL_ROLES), 
 
-      // จัดการผู้ใช้ / ประวัติ (Super Admin + Farm Admin)
-      page("/users", "users", "จัดการผู้ใช้งาน", [SA, FA]), // UserManagementView
+      page("/users", "users", "จัดการผู้ใช้งาน", [SA, FA]), 
       page("/audit-logs", "audit-logs", "ประวัติการใช้งาน", [SA, FA]),
 
-      // ---------- หน้าที่ผูกกับฟาร์ม ----------
       page("/dashboard", "dashboard", "แดชบอร์ด", [SA, FA], {
         farmScoped: true,
       }),
       page("/notifications", "notifications", "การแจ้งเตือน", [SA, FA, FS], {
         farmScoped: true,
-      }),
+      }), 
 
-      // จัดการฟาร์ม
       page("/farm/info", "farm-info", "ข้อมูลฟาร์ม", [SA, FA], {
         farmScoped: true,
-      }), // FarmInfoView
+      }), 
       page("/farm/houses", "farm-houses", "ข้อมูลโรงเรือน", [SA, FA, FS], {
         farmScoped: true,
-      }), // HouseInfoView
+      }), 
       page("/farm/flocks", "farm-flocks", "ข้อมูลฝูงไก่", [SA, FA, FS], {
         farmScoped: true,
-      }), // FlockInfoView
+      }), 
       page("/farm/settings", "farm-settings", "ตั้งค่าฟาร์ม", [SA], {
         farmScoped: true,
-      }),
+      }), 
 
-      // ดำเนินงานในฟาร์ม (DailyEggRecordView มี tab อาหาร/สุขภาพ/ไข่)
       page("/operations/feed", "ops-feed", "จัดการอาหาร", [SA, FA, FS], {
         farmScoped: true,
-      }),
+      }), 
       page(
         "/operations/health",
         "ops-health",
@@ -123,7 +107,7 @@ const routes = [
       ),
       page("/operations/eggs", "ops-eggs", "จัดการผลผลิตไข่", [SA, FA, FS], {
         farmScoped: true,
-      }),
+      }), 
       page(
         "/operations/maintenance",
         "ops-maintenance",
@@ -132,7 +116,6 @@ const routes = [
         { farmScoped: true },
       ),
 
-      // คลังสินค้า
       page(
         "/inventory/supplies",
         "inv-supplies",
@@ -148,16 +131,15 @@ const routes = [
         { farmScoped: true },
       ),
 
-      // การเงิน
       page("/finance/income", "fin-income", "รายรับ", [SA, FA, FIN], {
         farmScoped: true,
-      }),
+      }), 
       page("/finance/expense", "fin-expense", "รายจ่าย", [SA, FA, FIN], {
         farmScoped: true,
       }),
       page("/finance/cost", "fin-cost", "ต้นทุน", [SA, FA, FIN], {
         farmScoped: true,
-      }),
+      }), 
       page(
         "/finance/reports",
         "fin-reports",
@@ -176,76 +158,42 @@ const router = createRouter({
   routes,
 });
 
-// TODO: ตอนต่อ backend ให้ใช้ guard เดิมแทน (เช็ก token + fetchProfile)
-const DEV_PATHS = {
-  "/superadmin": SA,
-  "/farmadmin": FA,
-  "/farmstaff": FS,
-  "/financestaff": FIN,
-};
-
-//router.beforeEach((to) => {
-//if (to.meta.public) return true;
-
-//const auth = useAuthStore();
-
-// เข้า 4 path นี้ = สลับเป็น role นั้นทันที
-//const devRole = DEV_PATHS[to.path];
-// if (devRole) {
-// auth.setMockRole(devRole);
-//return true;
-//}
-
-// ยังไม่เคยเลือก role → ไปหน้า superadmin
-//if (!auth.user) return "/superadmin";
-
-// role ไม่มีสิทธิ์ → กลับหน้าแรกของ role
-//const { roles } = to.meta;
-//if (roles && !roles.includes(auth.userRole)) {
-//return defaultPathFor(auth.userRole);
-//}
-
-// return true;
-//});
-
-// ถอด from, next ออก เหลือแค่ (to)
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
-  // กู้ Session จาก storage เสมอหาก State หลุดตอน Refresh หน้า
   if (!auth.token) {
     auth.restoreSession();
   }
 
-  // ยังตั้งค่าฟาร์มไม่เสร็จ อนุญาตเฉพาะหน้าข้อมูลฟาร์ม
-if (auth.isAuthenticated && auth.isFarmSetupRequired) {
-  return to.name === 'farm-info'
-    ? true
-    : { name: 'farm-info', replace: true };
-}
-
-  // เข้า 4 path นี้ = สลับเป็น role นั้นทันที (สำหรับ DEV)
-  const devRole = DEV_PATHS[to.path];
-  if (devRole && import.meta.env.DEV) {
-    auth.setMockRole(devRole);
-    return true;
+  if (auth.token && !auth.profileLoaded) {
+    try {
+      await auth.fetchProfile();
+    } catch (error) {
+      if (!auth.token || [401, 403, 404].includes(error.response?.status)) {
+        auth.clearLoginSession();
+      } else {
+        if (to.meta.public) return true;
+        return { name: 'login', query: { redirect: to.fullPath } };
+      }
+    }
+  }
+  if (auth.isAuthenticated && auth.isFarmSetupRequired) {
+    return to.name === 'farm-info'
+      ? true
+      : { name: 'farm-info', replace: true };
   }
 
-  // หน้า Public (Login, Register)
   if (to.meta.public) {
-    // ล็อกอินอยู่แล้ว พยายามเข้าหน้า Login → เด้งไปหน้าแรกตาม Role
-    if (auth.isAuthenticated) {
-      return defaultPathFor(auth.userRole);
+    if (auth.isAuthenticated && auth.profileLoaded && auth.userRole) {
+        return defaultPathFor(auth.userRole);
     }
     return true;
-  }
+}
 
-  // ยังไม่ล็อกอิน → ไปหน้า Login พร้อมเก็บ path เดิมไว้
   if (!auth.isAuthenticated) {
     return { name: "login", query: { redirect: to.fullPath } };
   }
 
-  // เช็กสิทธิ์ Role ตาม meta.roles
   const { roles } = to.meta;
   if (roles && !roles.includes(auth.userRole)) {
     return defaultPathFor(auth.userRole);
