@@ -32,6 +32,15 @@ const routes = [
   // ปรับ path ของไฟล์ให้ตรงกับโปรเจกต์จริง
    // หน้าแรก: ยังไม่ล็อกอิน → /login, ล็อกอินแล้ว → หน้าแรกตาม role
   {
+    path: '/farm/setup',
+    name: 'farm-setup',
+    component: Placeholder,
+    meta: {
+      title: 'ตั้งค่าฟาร์มครั้งแรก',
+      roles: [FA],
+    },
+  },
+  {
     path: "/",
     name: "home",
     redirect: () => {
@@ -216,6 +225,13 @@ router.beforeEach((to) => {
   if (!auth.token) {
     auth.restoreSession();
   }
+
+  // ยังตั้งค่าฟาร์มไม่เสร็จ อนุญาตเฉพาะหน้าข้อมูลฟาร์ม
+if (auth.isAuthenticated && auth.isFarmSetupRequired) {
+  return to.name === 'farm-info'
+    ? true
+    : { name: 'farm-info', replace: true };
+}
 
   // เข้า 4 path นี้ = สลับเป็น role นั้นทันที (สำหรับ DEV)
   const devRole = DEV_PATHS[to.path];

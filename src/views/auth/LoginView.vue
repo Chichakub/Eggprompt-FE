@@ -56,8 +56,10 @@ async function submit() {
             form.remember
         );
 
-        const targetPath = route.query.redirect || defaultPathFor(data.user.role);
-        router.push(targetPath);
+       const targetPath = auth.isFarmSetupRequired
+    ? '/farm/info'
+    : route.query.redirect || defaultPathFor(data.user.role);
+    router.push(targetPath);
     } catch (err) {
         errorMessage.value = err.response
             ? (ERROR_BY_STATUS[err.response.status] ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
