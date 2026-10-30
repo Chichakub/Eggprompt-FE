@@ -32,15 +32,6 @@ const routes = [
   // ปรับ path ของไฟล์ให้ตรงกับโปรเจกต์จริง
    // หน้าแรก: ยังไม่ล็อกอิน → /login, ล็อกอินแล้ว → หน้าแรกตาม role
   {
-    path: '/farm/setup',
-    name: 'farm-setup',
-    component: Placeholder,
-    meta: {
-      title: 'ตั้งค่าฟาร์มครั้งแรก',
-      roles: [FA],
-    },
-  },
-  {
     path: "/",
     name: "home",
     redirect: () => {
