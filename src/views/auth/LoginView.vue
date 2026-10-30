@@ -125,7 +125,7 @@ async function submit() {
                         class="h-3.5 w-3.5 accent-[#2864eb]" />
                     จดจำบัญชี
                 </label>
-                <button type="button" class="hover:underline">ลืมรหัสผ่าน?</button>
+                <RouterLink to="/forgot-password" class="hover:underline">ลืมรหัสผ่าน?</RouterLink>
             </div>
 
             <p v-if="errorMessage" role="alert" class="text-[10px] text-red-700">

@@ -25,6 +25,32 @@ const page = (path, name, title, roles, opts = {}) => ({
 
 const routes = [
   {
+    path: '/reset-password',
+    component: () => import('@/layouts/PasswordRecoveryLayout.vue'),
+    meta: { public: true },
+    children: [
+      {
+        path: '',
+        name: 'reset-password',
+        component: () => import('@/views/auth/ResetPasswordView.vue'),
+        meta: { public: true, title: 'ตั้งค่ารหัสผ่านใหม่' },
+      },
+    ],
+  },
+  {
+    path: '/forgot-password',
+    component: () => import('@/layouts/PasswordRecoveryLayout.vue'),
+    meta: { public: true },
+    children: [
+      {
+        path: '',
+        name: 'forgot-password',
+        component: () => import('@/views/auth/ForgotPasswordView.vue'),
+        meta: { public: true, title: 'ลืมรหัสผ่าน' },
+      },
+    ],
+  },
+  {
     path: "/",
     name: "home",
     redirect: () => {
