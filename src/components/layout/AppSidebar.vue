@@ -1,9 +1,3 @@
-<!--
-  src/components/layout/AppSidebar.vue
-  C2-51  Sidebar component (เมนูตาม role)
-  C2-52  แสดง username + role badge
-  C2-53  ปุ่มออกจากระบบ
--->
 <script setup>
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -44,13 +38,11 @@ const menu = computed(() => getMenu(auth.userRole));
 
 const profileIcon = computed(() => (auth.isSuperAdmin ? CircleUser : ShieldCheck));
 
-// การ์ดแจ้งเตือน: Farm Admin และ Farm Staff
 const showNotifications = computed(
   () => auth.isFarmAdmin || auth.isFarmStaff
 );
-const notificationCount = ref(0); // TODO: ดึงจาก API การแจ้งเตือนเมื่อมี
+const notificationCount = ref(0);
 
-// เปิด/ปิดกลุ่มเมนู (เริ่มต้นให้พับปิดไว้ก่อนทั้งหมด)
 const closedGroups = ref(
   new Set(
     menu.value
@@ -73,7 +65,6 @@ async function handleLogout() {
 
 <template>
   <aside class="sidebar">
-    <!-- โลโก้ -->
     <div class="brand">
       <span class="brand-logo">🥚</span>
       <div class="brand-text">
@@ -82,7 +73,6 @@ async function handleLogout() {
       </div>
     </div>
 
-    <!-- บัญชี + โปรไฟล์ (C2-52) -->
     <router-link to="/account" class="menu-link account-link" exact-active-class="active">
       <Settings :size="18" />
       <span>บัญชีและการตั้งค่า</span>
@@ -98,7 +88,6 @@ async function handleLogout() {
       </div>
     </div>
 
-    <!-- การแจ้งเตือน -->
     <router-link
       v-if="showNotifications"
       to="/notifications"
@@ -113,13 +102,11 @@ async function handleLogout() {
       <span class="notice-more">ดูทั้งหมด ›</span>
     </router-link>
 
-    <!-- เมนูหลัก (C2-51) -->
     <p class="section-label">เมนูหลัก</p>
 
     <nav>
       <ul class="menu">
         <li v-for="item in menu" :key="item.key ?? item.to">
-          <!-- เมนูเดี่ยว -->
           <router-link
             v-if="item.type === 'link'"
             :to="item.to"
@@ -130,7 +117,6 @@ async function handleLogout() {
             <span>{{ item.label }}</span>
           </router-link>
 
-          <!-- เมนูกลุ่ม -->
           <template v-else>
             <button type="button" class="group-btn" @click="toggleGroup(item.key)">
               <component :is="ICONS[item.icon]" :size="18" />
@@ -150,7 +136,6 @@ async function handleLogout() {
       </ul>
     </nav>
 
-    <!-- ออกจากระบบ (C2-53) -->
     <button type="button" class="logout-btn" @click="handleLogout">
       <LogOut :size="18" />
       ออกจากระบบ
@@ -184,7 +169,6 @@ async function handleLogout() {
   font-size: 14px;
 }
 
-/* ---------- Brand ---------- */
 .brand {
   display: flex;
   align-items: center;
@@ -216,7 +200,6 @@ async function handleLogout() {
   color: var(--sb-muted);
 }
 
-/* ---------- Profile ---------- */
 .profile-card {
   display: flex;
   align-items: center;
@@ -259,7 +242,6 @@ async function handleLogout() {
   line-height: 1.2;
 }
 
-/* ---------- Notification ---------- */
 .notice-card {
   display: flex;
   align-items: center;
@@ -307,7 +289,6 @@ async function handleLogout() {
   color: var(--sb-muted);
 }
 
-/* ---------- Menu ---------- */
 .section-label {
   margin: 6px 4px 2px;
   font-size: 12px;
@@ -382,7 +363,6 @@ async function handleLogout() {
   font-weight: 700;
 }
 
-/* ---------- Logout ---------- */
 .logout-btn {
   display: flex;
   align-items: center;
