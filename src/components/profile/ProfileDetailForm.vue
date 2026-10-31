@@ -4,9 +4,12 @@ import { Building2, Mail, Phone, User } from 'lucide-vue-next';
 defineProps({
   profile: { type: Object, default: null },
   loading: { type: Boolean, default: false },
+  editing: { type: Boolean, default: false },
+  draft: { type: Object, default: () => ({}) },
+  errors: { type: Object, default: () => ({}) },
 });
 
-defineEmits(['change-password']);
+defineEmits(['change-password', 'update-field', 'submit']);
 
 const PASSWORD_MASK = '••••••••••••';
 </script>
@@ -15,17 +18,31 @@ const PASSWORD_MASK = '••••••••••••';
   <section class="detail-card" :aria-busy="loading">
     <h2 class="title">รายละเอียดข้อมูลผู้ใช้</h2>
 
-    <form class="grid" @submit.prevent>
+    <form
+      class="grid"
+      :class="{ 'is-editing': editing }"
+      novalidate
+      @submit.prevent="editing && $emit('submit')"
+    >
       <!-- ชื่อ-สกุล -->
       <div class="field">
         <label for="pf-name">ชื่อ - สกุล (Name - Last Name) <b class="req">*</b></label>
         <div class="control">
-          <input id="pf-name" type="text" :value="profile?.fullName ?? ''" readonly />
+          <input
+            id="pf-name"
+            type="text"
+            maxlength="255"
+            :value="editing ? draft.fullName : (profile?.fullName ?? '')"
+            :readonly="!editing"
+            :class="{ editable: editing, invalid: errors.fullName }"
+            @input="$emit('update-field', 'fullName', $event.target.value)"
+          />
           <User class="icon" :size="16" />
         </div>
+        <p v-if="errors.fullName" class="err" role="alert">{{ errors.fullName }}</p>
       </div>
 
-      <!-- สิทธิ์ -->
+      
       <div class="field">
         <label for="pf-role">สิทธิ์ผู้ใช้งาน</label>
         <div class="control">
@@ -37,26 +54,53 @@ const PASSWORD_MASK = '••••••••••••';
       <div class="field">
         <label for="pf-email">อีเมล (Email) <b class="req">*</b></label>
         <div class="control">
-          <input id="pf-email" type="email" :value="profile?.email ?? ''" readonly />
+          <input
+            id="pf-email"
+            type="email"
+            maxlength="255"
+            :value="editing ? draft.email : (profile?.email ?? '')"
+            :readonly="!editing"
+            :class="{ editable: editing, invalid: errors.email }"
+            @input="$emit('update-field', 'email', $event.target.value)"
+          />
           <Mail class="icon" :size="16" />
         </div>
+        <p v-if="errors.email" class="err" role="alert">{{ errors.email }}</p>
       </div>
 
       <!-- เบอร์โทร -->
       <div class="field">
         <label for="pf-phone">เบอร์โทรศัพท์ (Phone Number) <b class="req">*</b></label>
         <div class="control">
-          <input id="pf-phone" type="tel" :value="profile?.phone ?? ''" readonly />
+          <input
+            id="pf-phone"
+            type="tel"
+            maxlength="20"
+            :value="editing ? draft.phone : (profile?.phone ?? '')"
+            :readonly="!editing"
+            :class="{ editable: editing, invalid: errors.phone }"
+            @input="$emit('update-field', 'phone', $event.target.value)"
+          />
           <Phone class="icon" :size="16" />
         </div>
+        <p v-if="errors.phone" class="err" role="alert">{{ errors.phone }}</p>
       </div>
 
       <!-- Username -->
       <div class="field">
         <label for="pf-username">ชื่อผู้ใช้งาน (Username)</label>
         <div class="control">
-          <input id="pf-username" type="text" :value="profile?.username ?? ''" readonly />
+          <input
+            id="pf-username"
+            type="text"
+            maxlength="100"
+            :value="editing ? draft.username : (profile?.username ?? '')"
+            :readonly="!editing"
+            :class="{ editable: editing, invalid: errors.username }"
+            @input="$emit('update-field', 'username', $event.target.value)"
+          />
         </div>
+        <p v-if="errors.username" class="err" role="alert">{{ errors.username }}</p>
       </div>
 
       <!-- Password (masked) -->
@@ -72,11 +116,19 @@ const PASSWORD_MASK = '••••••••••••';
         </div>
       </div>
 
-      <!-- ตำแหน่ง (เต็มแถว) -->
+      
       <div class="field full">
         <label for="pf-position">ตำแหน่ง</label>
         <div class="control">
-          <input id="pf-position" type="text" :value="profile?.position ?? ''" readonly />
+          <input
+            id="pf-position"
+            type="text"
+            maxlength="255"
+            :value="editing ? draft.position : (profile?.position ?? '')"
+            :readonly="!editing"
+            :class="{ editable: editing }"
+            @input="$emit('update-field', 'position', $event.target.value)"
+          />
           <Building2 class="icon" :size="16" />
         </div>
       </div>
@@ -161,6 +213,21 @@ label {
   box-sizing: border-box;
   text-overflow: ellipsis;
   cursor: default;
+}
+
+.grid.is-editing .control input {
+  background: #fff;
+}
+.control input.editable {
+  cursor: text;
+}
+.control input.invalid {
+  border-color: #e5484d;
+}
+.err {
+  margin: 0;
+  font-size: 12px;
+  color: #b42318;
 }
 .control input:focus {
   outline: 2px solid #8c9c70;

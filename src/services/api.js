@@ -69,6 +69,12 @@ export const authApi = {
       timeout: 15000,
     }),
 
+  // PUT /v1/users/me — แก้ไขข้อมูลส่วนตัว
+  updateMe: (payload) =>
+    api.put("/api/v1/users/me", payload, {
+      timeout: 15000,
+    }),
+
   changePassword: (payload) =>
     api.post("/api/v1/auth/change-password", payload, {
     timeout: 15000,

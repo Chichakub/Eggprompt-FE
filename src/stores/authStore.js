@@ -90,6 +90,14 @@ export const useAuthStore = defineStore('auth', {
       return this.user;
     },
 
+    // อัปเดต username ใน store + storage หลังแก้โปรไฟล์
+    setUsername(username) {
+      if (!this.user) return;
+      this.user = { ...this.user, username };
+      const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
+      storage.setItem(USER_KEY, JSON.stringify(this.user));
+    },
+
     async logout() {
       try {
         await authApi.logout();

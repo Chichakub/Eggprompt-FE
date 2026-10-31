@@ -1,7 +1,9 @@
 <script setup>
-import { onMounted, ref } from 'vue';
-import { SquarePen } from 'lucide-vue-next';
+import { onMounted, reactive, ref } from 'vue';
+import { Check, SquarePen, X } from 'lucide-vue-next';
 import { userService } from '@/services/userService';
+import { useModalStore } from '@/stores/modalStore';
+import { useAuthStore } from '@/stores/authStore';
 import ProfileCard from '@/components/profile/ProfileCard.vue';
 import ProfileDetailForm from '@/components/profile/ProfileDetailForm.vue';
 import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue';
@@ -10,6 +12,17 @@ const profile = ref(null);
 const loading = ref(true);
 const errorMessage = ref('');
 const showChangePassword = ref(false);
+const modalStore = useModalStore();
+const authStore = useAuthStore();
+
+const editing = ref(false);
+const saving = ref(false);
+const saveError = ref('');
+const draft = reactive({ username: '', fullName: '', email: '', phone: '', position: '' });
+const errors = reactive({ username: '', fullName: '', email: '', phone: '' });
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^0\d{8,9}$/; // เบอร์ไทย 9–10 หลัก (ตัด - และเว้นวรรคก่อนตรวจ)
 
 async function loadProfile() {
   loading.value = true;
@@ -24,12 +37,95 @@ async function loadProfile() {
   }
 }
 
+function clearErrors() {
+  Object.keys(errors).forEach((k) => (errors[k] = ''));
+  saveError.value = '';
+}
+
 function handleEdit() {
-  // TODO: โหมดแก้ไขโปรไฟล์ (นอกขอบเขต task นี้)
+  if (!profile.value || editing.value) return;
+  Object.assign(draft, {
+    username: profile.value.username ?? '',
+    fullName: profile.value.fullName ?? '',
+    email: profile.value.email ?? '',
+    phone: profile.value.phone ?? '',
+    position: profile.value.position ?? '',
+  });
+  clearErrors();
+  editing.value = true;
+}
+
+function handleCancel() {
+  if (saving.value) return;
+  editing.value = false;
+  clearErrors();
+}
+
+function updateField(key, value) {
+  draft[key] = value;
+  if (key in errors) errors[key] = '';
+  saveError.value = '';
+}
+
+function validate() {
+  clearErrors();
+  const username = draft.username.trim();
+  const email = draft.email.trim();
+  const phone = draft.phone.replace(/[\s-]/g, '');
+
+  if (!username) errors.username = 'กรุณากรอกชื่อผู้ใช้';
+  else if (username.length > 100) errors.username = 'ชื่อผู้ใช้ต้องไม่เกิน 100 ตัวอักษร';
+
+  if (!draft.fullName.trim()) errors.fullName = 'กรุณากรอกชื่อ - สกุล';
+  else if (draft.fullName.trim().length > 255) errors.fullName = 'ชื่อ - สกุลต้องไม่เกิน 255 ตัวอักษร';
+
+  if (!email) errors.email = 'กรุณากรอกอีเมล';
+  else if (!EMAIL_RE.test(email)) errors.email = 'รูปแบบอีเมลไม่ถูกต้อง';
+
+  if (!phone) errors.phone = 'กรุณากรอกเบอร์โทรศัพท์';
+  else if (!PHONE_RE.test(phone)) errors.phone = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
+
+  return !Object.values(errors).some(Boolean);
+}
+
+async function handleSave() {
+  if (saving.value || !editing.value || !validate()) return;
+
+  saving.value = true;
+  try {
+    profile.value = await userService.updateMyProfile({
+      username: draft.username.trim(),
+      fullName: draft.fullName.trim(),
+      email: draft.email.trim(),
+      phone: draft.phone.trim(),
+      position: draft.position.trim(),
+    });
+  } catch (err) {
+    const status = err.response?.status;
+    const message = err.response?.data?.message;
+    // 409 = ข้อมูลซ้ำ → ชี้ไปที่ช่องที่เกี่ยวข้อง
+    if (status === 409 && message?.includes('ชื่อผู้ใช้') && !message.includes('อีเมล')) {
+      errors.username = message;
+    } else if (status === 409 && message?.includes('อีเมล') && !message.includes('ชื่อผู้ใช้')) {
+      errors.email = message;
+    } else if (status === 400 && message === 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง') {
+      errors.phone = message;
+    } else {
+      saveError.value = message || 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง';
+    }
+    return;
+  } finally {
+    saving.value = false;
+  }
+
+  authStore.setUsername(profile.value.username); // ให้ Sidebar เปลี่ยนชื่อทันที
+  editing.value = false;
+  clearErrors();
+  modalStore.openSuccess({ title: 'แก้ไขสำเร็จ', message: 'แก้ไขแล้ว', confirmText: 'ตกลง' });
 }
 
 function handleChangePassword() {
-  if (!profile.value || loading.value) return;
+  if (!profile.value || loading.value || saving.value) return;
 
   showChangePassword.value = true;
 }
@@ -42,11 +138,25 @@ onMounted(loadProfile);
     <ChangePasswordModal v-if="showChangePassword" @close="showChangePassword = false" />
     <header class="page-head">
       <h1>บัญชีของฉัน</h1>
-      <button type="button" class="edit-btn" :disabled="!profile" @click="handleEdit">
+      <div v-if="editing" class="head-actions">
+        <button type="button" class="edit-btn" :disabled="saving" @click="handleCancel">
+          <X :size="18" />
+          ยกเลิก
+        </button>
+        <button type="button" class="edit-btn primary" :disabled="saving" @click="handleSave">
+          <Check :size="18" />
+          {{ saving ? 'กำลังบันทึก...' : 'ยืนยันการแก้ไข' }}
+        </button>
+      </div>
+      <button v-else type="button" class="edit-btn" :disabled="!profile" @click="handleEdit">
         <SquarePen :size="18" />
         แก้ไข
       </button>
     </header>
+
+    <div v-if="saveError" class="error-box" role="alert">
+      <span>{{ saveError }}</span>
+    </div>
 
     <div v-if="errorMessage" class="error-box" role="alert">
       <span>{{ errorMessage }}</span>
@@ -55,13 +165,22 @@ onMounted(loadProfile);
 
     <div class="layout">
       <ProfileCard :profile="profile" :loading="loading" />
-      <ProfileDetailForm :profile="profile" :loading="loading" @change-password="handleChangePassword" />
+      <ProfileDetailForm
+        :profile="profile"
+        :loading="loading"
+        :editing="editing"
+        :draft="draft"
+        :errors="errors"
+        @update-field="updateField"
+        @submit="handleSave"
+        @change-password="handleChangePassword"
+      />
     </div>
   </div>
 </template>
 
 <style scoped>
-/* padding และพื้นหลังมาจาก MainLayout (.content) แล้ว */
+
 .profile-page {
   box-sizing: border-box;
 }
@@ -99,6 +218,20 @@ onMounted(loadProfile);
   background: #efe9da;
 }
 
+.head-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-btn.primary {
+  border-color: #f6d390;
+  background: #f6d390;
+}
+
+.edit-btn.primary:hover:not(:disabled) {
+  background: #efc36c;
+}
+
 .edit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -129,7 +262,6 @@ onMounted(loadProfile);
   cursor: pointer;
 }
 
-/* ซ้ายแคบ ขวากว้าง ตามดีไซน์ (~ 1 : 2) */
 .layout {
   display: grid;
   grid-template-columns: minmax(300px, 1fr) minmax(0, 2.1fr);
