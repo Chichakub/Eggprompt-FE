@@ -96,7 +96,11 @@ const routes = [
         leavesInspection: true,
       }), 
 
-      page("/account", "account", "บัญชีและการตั้งค่า", ALL_ROLES), 
+      // ทุก role
+      //page("/account", "account", "บัญชีและการตั้งค่า", ALL_ROLES), // UserProfileView
+      page("/account", "account", "บัญชีและการตั้งค่า", ALL_ROLES, {
+        component: () => import("@/views/UserProfileView.vue"),
+      }),
 
       page("/users", "users", "จัดการผู้ใช้งาน", [SA, FA]), 
       page("/audit-logs", "audit-logs", "ประวัติการใช้งาน", [SA, FA]),
