@@ -33,13 +33,11 @@ export const userService = {
   },
 
   // PUT /v1/users/me — ส่งเฉพาะฟิลด์ที่แก้ได้ (role/status ไม่ส่ง)
-  async updateMyProfile({ username, fullName, email, phone, position }) {
+  async updateMyProfile({ fullName, email, phone }) {
     const res = await authApi.updateMe({
-      username,
       fullName,
       email,
       phoneNumber: phone,
-      position,
     });
     return toProfile(res.data?.data ?? res.data);
   },

@@ -90,17 +90,8 @@ const PASSWORD_MASK = '••••••••••••';
       <div class="field">
         <label for="pf-username">ชื่อผู้ใช้งาน (Username)</label>
         <div class="control">
-          <input
-            id="pf-username"
-            type="text"
-            maxlength="100"
-            :value="editing ? draft.username : (profile?.username ?? '')"
-            :readonly="!editing"
-            :class="{ editable: editing, invalid: errors.username }"
-            @input="$emit('update-field', 'username', $event.target.value)"
-          />
+          <input id="pf-username" type="text" :value="profile?.username ?? ''" readonly />
         </div>
-        <p v-if="errors.username" class="err" role="alert">{{ errors.username }}</p>
       </div>
 
       <!-- Password (masked) -->
@@ -116,19 +107,10 @@ const PASSWORD_MASK = '••••••••••••';
         </div>
       </div>
 
-      
       <div class="field full">
         <label for="pf-position">ตำแหน่ง</label>
         <div class="control">
-          <input
-            id="pf-position"
-            type="text"
-            maxlength="255"
-            :value="editing ? draft.position : (profile?.position ?? '')"
-            :readonly="!editing"
-            :class="{ editable: editing }"
-            @input="$emit('update-field', 'position', $event.target.value)"
-          />
+          <input id="pf-position" type="text" :value="profile?.position ?? ''" readonly />
           <Building2 class="icon" :size="16" />
         </div>
       </div>
