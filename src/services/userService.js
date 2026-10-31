@@ -31,4 +31,16 @@ export const userService = {
     const res = await authApi.me();
     return toProfile(res.data?.data ?? res.data);
   },
+
+  // PUT /v1/users/me — ส่งเฉพาะฟิลด์ที่แก้ได้ (role/status ไม่ส่ง)
+  async updateMyProfile({ username, fullName, email, phone, position }) {
+    const res = await authApi.updateMe({
+      username,
+      fullName,
+      email,
+      phoneNumber: phone,
+      position,
+    });
+    return toProfile(res.data?.data ?? res.data);
+  },
 };
