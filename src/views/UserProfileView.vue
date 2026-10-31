@@ -4,10 +4,12 @@ import { SquarePen } from 'lucide-vue-next';
 import { userService } from '@/services/userService';
 import ProfileCard from '@/components/profile/ProfileCard.vue';
 import ProfileDetailForm from '@/components/profile/ProfileDetailForm.vue';
+import ChangePasswordModal from '@/components/modals/ChangePasswordModal.vue';
 
 const profile = ref(null);
 const loading = ref(true);
 const errorMessage = ref('');
+const showChangePassword = ref(false);
 
 async function loadProfile() {
   loading.value = true;
@@ -25,8 +27,11 @@ async function loadProfile() {
 function handleEdit() {
   // TODO: โหมดแก้ไขโปรไฟล์ (นอกขอบเขต task นี้)
 }
+
 function handleChangePassword() {
-  // TODO: เปิด modal เปลี่ยนรหัสผ่าน (นอกขอบเขต task นี้)
+  if (!profile.value || loading.value) return;
+
+  showChangePassword.value = true;
 }
 
 onMounted(loadProfile);
@@ -34,6 +39,7 @@ onMounted(loadProfile);
 
 <template>
   <div class="profile-page">
+    <ChangePasswordModal v-if="showChangePassword" @close="showChangePassword = false" />
     <header class="page-head">
       <h1>บัญชีของฉัน</h1>
       <button type="button" class="edit-btn" :disabled="!profile" @click="handleEdit">
@@ -49,11 +55,7 @@ onMounted(loadProfile);
 
     <div class="layout">
       <ProfileCard :profile="profile" :loading="loading" />
-      <ProfileDetailForm
-        :profile="profile"
-        :loading="loading"
-        @change-password="handleChangePassword"
-      />
+      <ProfileDetailForm :profile="profile" :loading="loading" @change-password="handleChangePassword" />
     </div>
   </div>
 </template>
@@ -70,6 +72,7 @@ onMounted(loadProfile);
   justify-content: space-between;
   margin-bottom: 36px;
 }
+
 .page-head h1 {
   margin: 0;
   font-size: 28px;
@@ -91,9 +94,11 @@ onMounted(loadProfile);
   font-weight: 700;
   cursor: pointer;
 }
+
 .edit-btn:hover:not(:disabled) {
   background: #efe9da;
 }
+
 .edit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -112,6 +117,7 @@ onMounted(loadProfile);
   color: #b42318;
   font-size: 14px;
 }
+
 .retry-btn {
   padding: 6px 14px;
   border: 1px solid #f3c1c1;

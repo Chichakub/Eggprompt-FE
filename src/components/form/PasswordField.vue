@@ -9,6 +9,7 @@ defineProps({
   placeholder: { type: String, default: '' },
   error: { type: String, default: '' },
   required: { type: Boolean, default: false },
+  autocomplete: { type: String, default: 'new-password' },
 });
 
 const model = defineModel({ type: String, default: '' });
@@ -24,7 +25,7 @@ const visible = ref(false);
     :placeholder="placeholder"
     :error="error"
     :required="required"
-    autocomplete="new-password"
+    :autocomplete="autocomplete"
   >
     <template #icon>
       <KeyRound :size="15" />

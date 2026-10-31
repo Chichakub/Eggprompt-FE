@@ -68,4 +68,9 @@ export const authApi = {
     api.post("/api/v1/auth/reset-password", payload, {
       timeout: 15000,
     }),
+
+  changePassword: (payload) =>
+    api.post("/api/v1/auth/change-password", payload, {
+    timeout: 15000,
+  }),
 };

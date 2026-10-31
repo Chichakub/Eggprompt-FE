@@ -208,10 +208,12 @@ router.beforeEach(async (to) => {
     }
   }
   if (auth.isAuthenticated && auth.isFarmSetupRequired) {
-    return to.name === 'farm-info'
-      ? true
-      : { name: 'farm-info', replace: true };
+  const allowedBeforeFarmSetup = ['farm-info', 'account'];
+
+  if (!allowedBeforeFarmSetup.includes(to.name)) {
+    return { name: 'farm-info', replace: true };
   }
+}
 
   if (to.meta.public) {
     if (auth.isAuthenticated && auth.profileLoaded && auth.userRole) {
