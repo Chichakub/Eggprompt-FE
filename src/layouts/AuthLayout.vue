@@ -3,7 +3,7 @@ import { RouterView } from 'vue-router';
 </script>
 
 <template>
-  <main class="register-page min-h-dvh border-4 border-[#f6d494] bg-[#f7f2e7] text-[#23311e] lg:grid lg:grid-cols-[3fr_2fr]">
+  <main class="register-page min-h-dvh bg-[#f7f2e7] text-[#23311e] lg:grid lg:grid-cols-[3fr_2fr]">
     <section class="brand-panel relative isolate overflow-hidden bg-[#344824] px-7 py-8 text-white sm:px-14 lg:min-h-[calc(100dvh-8px)] lg:py-14" aria-label="เกี่ยวกับ EggPrompt">
       <div class="relative z-10 flex items-center gap-3 text-lg font-bold">
         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[13px] bg-[#ffb51b]" aria-hidden="true">
