@@ -15,7 +15,7 @@ function setup() {
   const local = storage(), session = storage();
   const authApi = { me: async () => ({ data: { userId: 7, username: 'tester', role: roles.FARM_STAFF } }), logout: async () => {} };
   const useStore = new Function('defineStore', 'authApi', 'localStorage', 'sessionStorage', ...Object.keys(roles),
-    source('stores/authStore.js').replace('export const ', 'const ') + '\nreturn useAuthStore;')
+    source('stores/authStore.js').replaceAll('export const ', 'const ') + '\nreturn useAuthStore;')
     (defineStore, authApi, local, session, ...Object.values(roles));
   const auth = useStore();
   let guard;
@@ -88,7 +88,7 @@ test('API sends sessionStorage token and clears all session data on 401', async 
   const api = { interceptors: { request: { use: fn => { request = fn; } }, response: { use: (_, fn) => { rejected = fn; } } } };
   const window = { location: { pathname: '/users', href: '' } };
   new Function('axios', 'useAuthStore', 'localStorage', 'sessionStorage', 'window',
-    source('services/api.js').replace('import.meta.env.VITE_API_URL', "''").replace('export const ', 'const '))
+    source('services/api.js').replace('import.meta.env.VITE_API_URL', "''").replaceAll('export const ', 'const '))
     ({ create: () => api }, () => auth, local, session, window);
   assert.equal(request({ headers: {} }).headers.Authorization, 'Bearer session-jwt');
   await assert.rejects(rejected({ response: { status: 401 }, config: { url: '/api/v1/auth/me' } }));

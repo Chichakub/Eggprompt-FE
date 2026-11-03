@@ -102,7 +102,7 @@ const routes = [
         component: () => import("@/views/UserProfileView.vue"),
       }),
 
-      page("/users", "users", "จัดการผู้ใช้งาน", [SA, FA]), 
+      page("/users", "users", "จัดการผู้ใช้งาน", [SA, FA], { component: () => import("@/views/users/UserManagementView.vue") }),
       page("/audit-logs", "audit-logs", "ประวัติการใช้งาน", [SA, FA]),
 
       page("/dashboard", "dashboard", "แดชบอร์ด", [SA, FA], {
