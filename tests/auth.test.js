@@ -20,7 +20,7 @@ function setup() {
   const auth = useStore();
   let guard;
   new Function('createRouter', 'createWebHistory', 'useAuthStore', 'SA', 'FA', 'FS', 'FIN', 'ALL_ROLES', 'defaultPathFor',
-    source('router/index.js').replace('export default router;', ''))
+    source('router/index.js').replace('export default router;', '').replaceAll('import.meta.env.BASE_URL', JSON.stringify('/')))
     (() => ({ beforeEach: fn => { guard = fn; } }), () => {}, useStore,
       roles.SUPER_ADMIN, roles.FARM_ADMIN, roles.FARM_STAFF, roles.FINANCE_STAFF, roles.ALL_ROLES, roles.defaultPathFor);
   return { auth, authApi, local, session, guard };
@@ -88,11 +88,41 @@ test('API sends sessionStorage token and clears all session data on 401', async 
   const api = { interceptors: { request: { use: fn => { request = fn; } }, response: { use: (_, fn) => { rejected = fn; } } } };
   const window = { location: { pathname: '/users', href: '' } };
   new Function('axios', 'useAuthStore', 'localStorage', 'sessionStorage', 'window',
-    source('services/api.js').replace('import.meta.env.VITE_API_URL', "''").replaceAll('export const ', 'const '))
+    source('services/api.js').replace('import.meta.env.VITE_API_URL', "''").replaceAll('import.meta.env.BASE_URL', JSON.stringify('/')).replaceAll('export const ', 'const '))
     ({ create: () => api }, () => auth, local, session, window);
   assert.equal(request({ headers: {} }).headers.Authorization, 'Bearer session-jwt');
   await assert.rejects(rejected({ response: { status: 401 }, config: { url: '/api/v1/auth/me' } }));
   assert.equal(auth.token, null);
   assert.equal(session.getItem('token'), null);
   assert.equal(window.location.href, '/login');
+});
+
+test('deployment base is preserved for API requests, router history and login redirects', async () => {
+  const base = '/capstone26/cp26cs1/';
+  const { auth, local, session } = setup();
+  let options, rejected;
+  const urls = [];
+  const api = {
+    post: url => urls.push(url), get: url => urls.push(url), put: url => urls.push(url), delete: url => urls.push(url),
+    interceptors: { request: { use() {} }, response: { use: (_, fn) => { rejected = fn; } } },
+  };
+  const window = { location: { pathname: `${base}users`, href: '' } };
+  const apis = new Function('axios', 'useAuthStore', 'localStorage', 'sessionStorage', 'window',
+    source('services/api.js').replace('import.meta.env.VITE_API_URL', "''")
+      .replaceAll('import.meta.env.BASE_URL', JSON.stringify(base))
+      .replaceAll('export const ', 'const ') + '\nreturn { authApi, userManagementApi };')
+    ({ create: config => { options = config; return api; } }, () => auth, local, session, window);
+  apis.authApi.login({}); apis.authApi.me(); apis.userManagementApi.list({}); apis.userManagementApi.update(5, {});
+  assert.equal(options.baseURL, base);
+  assert.deepEqual(urls.map(url => new URL(url, `https://example.com${options.baseURL}`).pathname), [
+    `${base}api/v1/auth/login`, `${base}api/v1/auth/me`, `${base}api/v1/admin/users`, `${base}api/v1/admin/users/5`,
+  ]);
+  await assert.rejects(rejected({ response: { status: 401 }, config: { url: 'api/v1/auth/me' } }));
+  assert.equal(window.location.href, `${base}login`);
+  let historyBase;
+  new Function('createRouter', 'createWebHistory', 'useAuthStore', 'SA', 'FA', 'FS', 'FIN', 'ALL_ROLES', 'defaultPathFor',
+    source('router/index.js').replace('export default router;', '').replaceAll('import.meta.env.BASE_URL', JSON.stringify(base)))
+    (() => ({ beforeEach() {} }), value => { historyBase = value; }, () => auth,
+      roles.SUPER_ADMIN, roles.FARM_ADMIN, roles.FARM_STAFF, roles.FINANCE_STAFF, roles.ALL_ROLES, roles.defaultPathFor);
+  assert.equal(historyBase, base);
 });

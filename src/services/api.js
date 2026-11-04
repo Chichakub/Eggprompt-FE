@@ -2,7 +2,7 @@ import axios from "axios";
 import { useAuthStore } from "@/stores/authStore";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "",
+  baseURL: import.meta.env.VITE_API_URL || import.meta.env.BASE_URL,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -42,8 +42,9 @@ api.interceptors.response.use(
     if (status === 401 && !isPublicAuthCall) {
       localStorage.removeItem("token");
       sessionStorage.removeItem("inspectedFarm");
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+      const loginPath = `${import.meta.env.BASE_URL}login`;
+      if (window.location.pathname !== loginPath) {
+        window.location.href = loginPath;
       }
     }
     return Promise.reject(error);
@@ -51,38 +52,38 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
-  login: (payload) => api.post("/api/v1/auth/login", payload),
+  login: (payload) => api.post("api/v1/auth/login", payload),
   register: (payload) =>
-    api.post("/api/v1/auth/register", payload, {
+    api.post("api/v1/auth/register", payload, {
       timeout: 15000,
     }),
-  me: () => api.get("/api/v1/auth/me"),
-  logout: () => api.post("/api/v1/auth/logout"),
+  me: () => api.get("api/v1/auth/me"),
+  logout: () => api.post("api/v1/auth/logout"),
 
   forgotPassword: (payload) =>
-    api.post("/api/v1/auth/forgot-password", payload, {
+    api.post("api/v1/auth/forgot-password", payload, {
       timeout: 30000,
     }),
 
   resetPassword: (payload) =>
-    api.post("/api/v1/auth/reset-password", payload, {
+    api.post("api/v1/auth/reset-password", payload, {
       timeout: 15000,
     }),
 
   // PUT /v1/users/me — แก้ไขข้อมูลส่วนตัว
   updateMe: (payload) =>
-    api.put("/api/v1/users/me", payload, {
+    api.put("api/v1/users/me", payload, {
       timeout: 15000,
     }),
 
   changePassword: (payload) =>
-    api.post("/api/v1/auth/change-password", payload, {
+    api.post("api/v1/auth/change-password", payload, {
     timeout: 15000,
   }),
 };
 export const userManagementApi = {
-  list: (params) => api.get('/api/v1/admin/users', { params }),
-  create: (payload) => api.post('/api/v1/admin/users', payload),
-  update: (id, payload) => api.put(`/api/v1/admin/users/${id}`, payload),
-  remove: (id) => api.delete(`/api/v1/admin/users/${id}`),
+  list: (params) => api.get('api/v1/admin/users', { params }),
+  create: (payload) => api.post('api/v1/admin/users', payload),
+  update: (id, payload) => api.put(`api/v1/admin/users/${id}`, payload),
+  remove: (id) => api.delete(`api/v1/admin/users/${id}`),
 };
