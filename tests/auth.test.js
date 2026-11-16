@@ -10,7 +10,7 @@ const storage = () => {
   const values = new Map();
   return { getItem: k => values.get(k) ?? null, setItem: (k, v) => values.set(k, String(v)), removeItem: k => values.delete(k) };
 };
-function setup() {
+function setup(farmApi = { detail: async id => ({ data: { farmId:id, farmName:`Farm ${id}`, active:true } }) }) {
   setActivePinia(createPinia());
   const local = storage(), session = storage();
   const authApi = { me: async () => ({ data: { userId: 7, username: 'tester', role: roles.FARM_STAFF } }), logout: async () => {} };
@@ -19,9 +19,9 @@ function setup() {
     (defineStore, authApi, local, session, ...Object.values(roles));
   const auth = useStore();
   let guard;
-  new Function('createRouter', 'createWebHistory', 'useAuthStore', 'SA', 'FA', 'FS', 'FIN', 'ALL_ROLES', 'defaultPathFor',
+  new Function('adminFarmApi', 'createRouter', 'createWebHistory', 'useAuthStore', 'SA', 'FA', 'FS', 'FIN', 'ALL_ROLES', 'defaultPathFor',
     source('router/index.js').replace('export default router;', '').replaceAll('import.meta.env.BASE_URL', JSON.stringify('/')))
-    (() => ({ beforeEach: fn => { guard = fn; } }), () => {}, useStore,
+    (farmApi, () => ({ beforeEach: fn => { guard = fn; } }), () => {}, useStore,
       roles.SUPER_ADMIN, roles.FARM_ADMIN, roles.FARM_STAFF, roles.FINANCE_STAFF, roles.ALL_ROLES, roles.defaultPathFor);
   return { auth, authApi, local, session, guard };
 }
@@ -120,9 +120,55 @@ test('deployment base is preserved for API requests, router history and login re
   await assert.rejects(rejected({ response: { status: 401 }, config: { url: 'api/v1/auth/me' } }));
   assert.equal(window.location.href, `${base}login`);
   let historyBase;
-  new Function('createRouter', 'createWebHistory', 'useAuthStore', 'SA', 'FA', 'FS', 'FIN', 'ALL_ROLES', 'defaultPathFor',
+  new Function('adminFarmApi', 'createRouter', 'createWebHistory', 'useAuthStore', 'SA', 'FA', 'FS', 'FIN', 'ALL_ROLES', 'defaultPathFor',
     source('router/index.js').replace('export default router;', '').replaceAll('import.meta.env.BASE_URL', JSON.stringify(base)))
-    (() => ({ beforeEach() {} }), value => { historyBase = value; }, () => auth,
+    ({}, () => ({ beforeEach() {} }), value => { historyBase = value; }, () => auth,
       roles.SUPER_ADMIN, roles.FARM_ADMIN, roles.FARM_STAFF, roles.FINANCE_STAFF, roles.ALL_ROLES, roles.defaultPathFor);
   assert.equal(historyBase, base);
+});
+
+test('inspection retains Super Admin role and context through refresh, then clears on logout', () => {
+  const { auth, session } = setup();
+  auth.setLoginSession({ token:'jwt', user:{ user_id:1, user_role:roles.SUPER_ADMIN } });
+  auth.inspectFarm({ farmId:'F1', farmName:'First farm', active:true });
+  assert.equal(auth.userRole, roles.SUPER_ADMIN);
+  assert.equal(auth.effectiveFarmId, 'F1');
+  auth.inspectedFarm = null;
+  auth.restoreSession();
+  assert.equal(auth.isInspecting, true);
+  assert.equal(auth.inspectionVerified, false);
+  auth.clearLoginSession();
+  assert.equal(auth.isInspecting, false);
+  assert.equal(session.getItem('inspectedFarm'), null);
+});
+test('inspection guard requires a farm, validates direct URL, and clears when returning to all farms', async () => {
+  let fetched;
+  const { auth, guard } = setup({ detail:async id => { fetched=id; return { data:{ farmId:id, farmName:id } }; } });
+  auth.setLoginSession({ token:'jwt', user:{ user_id:1, user_role:roles.SUPER_ADMIN } });
+  auth.profileLoaded = true;
+  const destination = { path:'/farm/info', fullPath:'/farm/info', query:{}, meta:{ farmScoped:true, roles:[roles.SUPER_ADMIN] } };
+  assert.equal((await guard(destination)).name,'all-farms');
+  assert.equal(await guard({ ...destination, query:{farmId:'F2'} }),true);
+  assert.equal(fetched,'F2');
+  assert.equal(auth.effectiveFarmId,'F2');
+  assert.equal((await guard({ ...destination, path:'/dashboard' })).query.farmId,'F2');
+  await guard({ path:'/farms', fullPath:'/farms', query:{}, meta:{ leavesInspection:true, roles:[roles.SUPER_ADMIN] } });
+  assert.equal(auth.isInspecting,false);
+});
+test('farm staff cannot activate inspection and invalid farm IDs clear the selected farm', async () => {
+  const { auth, guard } = setup({ detail:async () => { throw { response:{status:404} }; } });
+  auth.setLoginSession({ token:'jwt', user:{ user_id:2, user_role:roles.FARM_STAFF } });
+  auth.inspectFarm({farmId:'forbidden'});
+  assert.equal(auth.inspectedFarm,null);
+  auth.setLoginSession({ token:'jwt', user:{ user_id:1, user_role:roles.SUPER_ADMIN } });auth.profileLoaded=true;
+  const result = await guard({path:'/farm/info',query:{farmId:'missing'},meta:{farmScoped:true,roles:[roles.SUPER_ADMIN]}});
+  assert.equal(result.name,'all-farms');assert.equal(auth.isInspecting,false);
+});
+
+test('inspection sidebar reuses the exact Farm Admin menu', () => {
+  const getMenu = new Function('SUPER_ADMIN','FARM_ADMIN','FARM_STAFF','FINANCE_STAFF',
+    source('constants/menuConfig.js').replace('export function getMenu','function getMenu')+'\nreturn getMenu;')
+    (roles.SUPER_ADMIN,roles.FARM_ADMIN,roles.FARM_STAFF,roles.FINANCE_STAFF);
+  assert.deepEqual(getMenu(roles.SUPER_ADMIN,true), getMenu(roles.FARM_ADMIN));
+  assert.notDeepEqual(getMenu(roles.SUPER_ADMIN,false),getMenu(roles.FARM_ADMIN));
 });

@@ -10,9 +10,13 @@ export const useAuthStore = defineStore('auth', {
     user: null,
     token: null,
     profileLoaded: false,
+    inspectedFarm: null,
+    inspectionVerified: false,
   }),
 
   getters: {
+    isInspecting: (state) => state.user?.user_role === SUPER_ADMIN && !!state.inspectedFarm,
+    effectiveFarmId: (state) => state.user?.user_role === SUPER_ADMIN ? state.inspectedFarm?.farmId : state.user?.farm_id,
     isAuthenticated: (state) => !!state.token,
     userRole: (state) => state.user?.user_role ?? null,
     isFarmSetupRequired: (state) =>
@@ -25,11 +29,23 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    inspectFarm(farm) {
+      if (!this.isSuperAdmin) return;
+      this.inspectedFarm = farm;
+      this.inspectionVerified = true;
+      sessionStorage.setItem('inspectedFarm', JSON.stringify({ userId: this.user?.user_id, farm }));
+    },
+    leaveInspection() {
+      this.inspectedFarm = null;
+      this.inspectionVerified = false;
+      sessionStorage.removeItem('inspectedFarm');
+    },
     setSession(session) {
       this.setLoginSession(session);
     },
 
     setLoginSession({ token, user }, remember = true) {
+      this.leaveInspection();
       const storage = remember ? localStorage : sessionStorage;
       const other = remember ? sessionStorage : localStorage;
 
@@ -54,12 +70,18 @@ export const useAuthStore = defineStore('auth', {
             this.profileLoaded = false;
             this.token = token;
             this.user = JSON.parse(raw);
+            const saved = JSON.parse(sessionStorage.getItem('inspectedFarm') || 'null');
+            if (this.isSuperAdmin && saved?.userId === this.user?.user_id && saved?.farm?.farmId) {
+              this.inspectedFarm = saved.farm;
+              this.inspectionVerified = false;
+            } else this.leaveInspection();
         } catch {
             this.clearLoginSession(); 
         }
     },
 
     clearLoginSession() {
+      this.leaveInspection();
       this.profileLoaded = false;
       this.token = null;
       this.user = null;

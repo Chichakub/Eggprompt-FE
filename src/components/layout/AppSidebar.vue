@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   Bell,
@@ -34,22 +34,30 @@ const ICONS = {
 const router = useRouter();
 const auth = useAuthStore();
 
-const menu = computed(() => getMenu(auth.userRole));
+const menu = computed(() => getMenu(auth.userRole, auth.isInspecting));
 
 const profileIcon = computed(() => (auth.isSuperAdmin ? CircleUser : ShieldCheck));
 
 const showNotifications = computed(
-  () => auth.isFarmAdmin || auth.isFarmStaff
+  () => auth.isFarmAdmin || auth.isFarmStaff || auth.isInspecting
 );
 const notificationCount = ref(0);
 
 const closedGroups = ref(
   new Set(
     menu.value
-      .filter((item) => item.type !== 'link' && item.key)
+      .filter((item) => item.type !== 'link' && item.key && (!auth.isInspecting || item.key !== 'farm'))
       .map((item) => item.key)
   )
 );
+
+watch(() => auth.isInspecting, () => {
+  closedGroups.value = new Set(menu.value.filter(item => item.key && item.key !== 'farm').map(item => item.key));
+});
+async function leaveInspection() {
+  await router.push('/farms');
+  auth.leaveInspection();
+}
 
 const isOpen = (key) => !closedGroups.value.has(key);
 function toggleGroup(key) {
@@ -73,12 +81,16 @@ async function handleLogout() {
       </div>
     </div>
 
-    <router-link to="/account" class="menu-link account-link" exact-active-class="active">
+    <router-link v-if="!auth.isInspecting" to="/account" class="menu-link account-link" exact-active-class="active">
       <Settings :size="18" />
       <span>บัญชีและการตั้งค่า</span>
     </router-link>
 
-    <div class="profile-card">
+    <template v-if="auth.isInspecting">
+      <button class="inspection-back" @click="leaveInspection">← กลับไปฟาร์มทั้งหมด</button>
+      <div class="inspection-card"><small>กำลังตรวจสอบฟาร์ม</small><strong>{{ auth.inspectedFarm.farmName }}</strong><span :class="{ suspended: !auth.inspectedFarm.active }">● {{ auth.inspectedFarm.active ? 'ใช้งานอยู่' : 'ระงับบริการ' }}</span></div>
+    </template>
+    <div v-else class="profile-card">
       <span class="avatar">
         <component :is="profileIcon" :size="18" />
       </span>
@@ -144,6 +156,10 @@ async function handleLogout() {
 </template>
 
 <style scoped>
+.inspection-back { border:1px dashed #e9a23b; background:transparent; color:#f2bd5b; border-radius:11px; padding:12px; text-align:left; font:inherit; cursor:pointer; }
+.inspection-card { border:1px solid #e9a23b; background:#594523; border-radius:13px; padding:13px; display:flex; flex-direction:column; gap:8px; }
+.inspection-card small { color:#e9d9b4; }.inspection-card strong { color:#fff8e7; overflow-wrap:anywhere; }.inspection-card span { font-size:12px; color:#a4d987; }.inspection-card .suspended { color:#ffb8a9; }
+
 .sidebar {
   --sb-bg: #3b4a2a;
   --sb-text: #e8ecdf;

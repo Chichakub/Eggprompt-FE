@@ -41,11 +41,12 @@ async function load() {
 watch(search, () => { clearTimeout(debounce); debounce = setTimeout(() => { page.value === 0 ? load() : page.value = 0; }, 300); });
 watch([role, size], () => { clearTimeout(debounce); page.value === 0 ? load() : page.value = 0; });
 watch(page, load);
+watch(() => auth.effectiveFarmId, () => { page.value === 0 ? load() : page.value = 0; });
 onMounted(load);
 onBeforeUnmount(() => { clearTimeout(debounce); sequence++; });
 function startCreate() {
   formError.value = ''; showPassword.value = false;
-  Object.assign(form, { username: '', password: '', role: '', farmId: auth.user?.farm_id || '', active: true });
+  Object.assign(form, { username: '', password: '', role: '', farmId: auth.effectiveFarmId || '', active: true });
   creating.value = true;
 }
 async function startEdit(user) {
