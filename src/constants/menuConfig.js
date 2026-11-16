@@ -63,7 +63,8 @@ const FINANCE_STAFF_MENU = [
   finance,
 ];
 
-export function getMenu(role) {
+export function getMenu(role, inspecting = false) {
+  if (role === SUPER_ADMIN && inspecting) return FARM_ADMIN_MENU;
   switch (role) {
     case SUPER_ADMIN: return SUPER_ADMIN_MENU;
     case FARM_ADMIN: return FARM_ADMIN_MENU;

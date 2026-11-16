@@ -17,6 +17,11 @@ api.interceptors.request.use((config) => {
   if (publicAuthPaths.some((path) => config.url?.endsWith(path))) {
     return config;
   }
+  const auth = useAuthStore();
+  if (auth.isInspecting && (!config.method || config.method.toLowerCase() === 'get')
+      && /(?:admin\/users|v1\/houses)(?:[/?]|$)/.test(config.url || '')) {
+    config.params = { ...config.params, farmId: auth.effectiveFarmId };
+  }
   const token =
     useAuthStore().token ||
     localStorage.getItem("token") ||
@@ -52,6 +57,7 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
+  myFarm: () => api.get("api/v1/farms/me"),
   login: (payload) => api.post("api/v1/auth/login", payload),
   register: (payload) =>
     api.post("api/v1/auth/register", payload, {
@@ -86,4 +92,10 @@ export const userManagementApi = {
   create: (payload) => api.post('api/v1/admin/users', payload),
   update: (id, payload) => api.put(`api/v1/admin/users/${id}`, payload),
   remove: (id) => api.delete(`api/v1/admin/users/${id}`),
+};
+
+export const adminFarmApi = {
+  list: (params) => api.get('api/v1/admin/farms', { params }),
+  summary: () => api.get('api/v1/admin/farms/summary'),
+  detail: (id) => api.get(`api/v1/admin/farms/${encodeURIComponent(id)}`),
 };

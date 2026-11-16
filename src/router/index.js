@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { adminFarmApi } from "@/services/api";
 import { useAuthStore } from "@/stores/authStore";
 import {
   SUPER_ADMIN as SA,
@@ -20,6 +21,7 @@ const page = (path, name, title, roles, opts = {}) => ({
     roles,
     farmScoped: !!opts.farmScoped,
     leavesInspection: !!opts.leavesInspection,
+    inspectionAware: !!opts.inspectionAware,
   },
 });
 
@@ -84,12 +86,13 @@ const routes = [
     component: () => import("@/layouts/MainLayout.vue"),
     children: [
 
-      page("/superadmin", "superadmin", "หน้าแรก Super Admin", [SA]),
+      page("/superadmin", "superadmin", "หน้าแรก Super Admin", [SA], { component: () => import("@/views/farms/AllFarmsView.vue"), leavesInspection: true }),
       page("/farmadmin", "farmadmin", "หน้าแรก Farm Admin", [FA]),
       page("/farmstaff", "farmstaff", "หน้าแรก Farm Staff", [FS]),
       page("/financestaff", "financestaff", "หน้าแรก Finance Staff", [FIN]),
 
       page("/farms", "all-farms", "ฟาร์มทั้งหมด", [SA], {
+        component: () => import("@/views/farms/AllFarmsView.vue"),
         leavesInspection: true,
       }), 
       page("/farms/new", "new-farm", "ลงทะเบียนฟาร์มใหม่", [SA], {
@@ -102,8 +105,8 @@ const routes = [
         component: () => import("@/views/UserProfileView.vue"),
       }),
 
-      page("/users", "users", "จัดการผู้ใช้งาน", [SA, FA], { component: () => import("@/views/users/UserManagementView.vue") }),
-      page("/audit-logs", "audit-logs", "ประวัติการใช้งาน", [SA, FA]),
+      page("/users", "users", "จัดการผู้ใช้งาน", [SA, FA], { component: () => import("@/views/users/UserManagementView.vue"), inspectionAware: true }),
+      page("/audit-logs", "audit-logs", "ประวัติการใช้งาน", [SA, FA], { inspectionAware: true }),
 
       page("/dashboard", "dashboard", "แดชบอร์ด", [SA, FA], {
         farmScoped: true,
@@ -113,6 +116,7 @@ const routes = [
       }), 
 
       page("/farm/info", "farm-info", "ข้อมูลฟาร์ม", [SA, FA], {
+        component: () => import("@/views/farms/FarmInfoView.vue"),
         farmScoped: true,
       }), 
       page("/farm/houses", "farm-houses", "ข้อมูลโรงเรือน", [SA, FA, FS], {
@@ -231,6 +235,22 @@ router.beforeEach(async (to) => {
     return defaultPathFor(auth.userRole);
   }
 
+  if (!auth.isSuperAdmin) auth.leaveInspection();
+  if (auth.isSuperAdmin && to.meta.leavesInspection) auth.leaveInspection();
+  if (auth.isSuperAdmin && (to.meta.farmScoped || to.meta.inspectionAware)) {
+    const selected = typeof to.query.farmId === 'string' ? to.query.farmId : auth.inspectedFarm?.farmId;
+    if (!selected && to.meta.farmScoped) return { name: 'all-farms' };
+    if (selected && (!auth.inspectionVerified || auth.inspectedFarm?.farmId !== selected)) {
+      try {
+        const { data } = await adminFarmApi.detail(selected);
+        auth.inspectFarm(data);
+      } catch (error) {
+        auth.leaveInspection();
+        return { name: 'all-farms', query: { error: error.response?.status === 404 ? 'missing' : 'unavailable' } };
+      }
+    }
+    if (selected && to.query.farmId !== selected) return { path: to.path, query: { ...to.query, farmId: selected }, hash: to.hash, replace: true };
+  }
   return true;
 });
 
