@@ -99,3 +99,10 @@ export const adminFarmApi = {
   summary: () => api.get('api/v1/admin/farms/summary'),
   detail: (id) => api.get(`api/v1/admin/farms/${encodeURIComponent(id)}`),
 };
+
+export const houseApi = {
+  list: (params) => api.get('api/v1/houses', { params }),
+  create: (payload) => api.post('api/v1/houses', payload),
+  update: (id, payload) => api.put(`api/v1/houses/${id}`, payload),
+  remove: (id) => api.delete(`api/v1/houses/${id}`),
+};
