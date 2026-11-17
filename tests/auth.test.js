@@ -172,3 +172,39 @@ test('inspection sidebar reuses the exact Farm Admin menu', () => {
   assert.deepEqual(getMenu(roles.SUPER_ADMIN,true), getMenu(roles.FARM_ADMIN));
   assert.notDeepEqual(getMenu(roles.SUPER_ADMIN,false),getMenu(roles.FARM_ADMIN));
 });
+
+test('Farm Admin resumes the database setup step and cannot skip by URL', async () => {
+  const { auth, authApi, guard } = setup();
+  auth.token = 'jwt';
+  auth.profileLoaded = true;
+  auth.user = { user_id: 7, user_role: roles.FARM_ADMIN, farm_id: null };
+  for (const [step, name] of [[1, 'farm-info'], [2, 'farm-houses'], [3, 'farm-flocks']]) {
+    authApi.setupStatus = async () => ({ data: { step, farmId: step === 1 ? null : 'farm-1' } });
+    assert.deepEqual(await guard({ name: 'dashboard', meta: {} }), { name, replace: true });
+    assert.equal(await guard({ name, meta: { roles: [roles.FARM_ADMIN] } }), true);
+  }
+  authApi.setupStatus = async () => ({ data: { step: 0, farmId: 'farm-1' } });
+  assert.equal(await guard({ name: 'dashboard', meta: { roles: [roles.FARM_ADMIN] } }), true);
+  assert.equal(auth.isFarmSetupRequired, false);
+  assert.equal(roles.defaultPathFor(roles.FARM_ADMIN), '/dashboard');
+});
+
+test('Farm Admin can return to saved farm details while setup remains required', async () => {
+  const { auth, authApi, guard } = setup();
+  auth.token = 'jwt';
+  auth.profileLoaded = true;
+  auth.user = { user_id: 7, user_role: roles.FARM_ADMIN, farm_id: 'farm-1' };
+  authApi.setupStatus = async () => ({ data: { step: 2, farmId: 'farm-1' } });
+  assert.equal(await guard({ name: 'farm-info', meta: { roles: [roles.FARM_ADMIN] } }), true);
+  assert.deepEqual(await guard({ name: 'dashboard', meta: {} }), { name: 'farm-houses', replace: true });
+});
+
+test('Farm Admin can return from flock setup to saved houses', async () => {
+  const { auth, authApi, guard } = setup();
+  auth.token = 'jwt';
+  auth.profileLoaded = true;
+  auth.user = { user_id: 7, user_role: roles.FARM_ADMIN, farm_id: 'farm-1' };
+  authApi.setupStatus = async () => ({ data: { step: 3, farmId: 'farm-1' } });
+  assert.equal(await guard({ name: 'farm-houses', meta: { roles: [roles.FARM_ADMIN] } }), true);
+  assert.deepEqual(await guard({ name: 'dashboard', meta: {} }), { name: 'farm-flocks', replace: true });
+});

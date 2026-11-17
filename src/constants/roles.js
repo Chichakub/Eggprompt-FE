@@ -10,7 +10,7 @@ export function defaultPathFor(role) {
     case SUPER_ADMIN:
       return '/superadmin';
     case FARM_ADMIN:
-      return '/farmadmin';
+      return '/dashboard';
     case FARM_STAFF:
       return '/farmstaff';
     case FINANCE_STAFF:

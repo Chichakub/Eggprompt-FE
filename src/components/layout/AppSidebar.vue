@@ -59,7 +59,7 @@ async function leaveInspection() {
   auth.leaveInspection();
 }
 
-const isOpen = (key) => !closedGroups.value.has(key);
+const isOpen = (key) => (auth.isFarmSetupRequired && key === "farm") || !closedGroups.value.has(key);
 function toggleGroup(key) {
   if (closedGroups.value.has(key)) closedGroups.value.delete(key);
   else closedGroups.value.add(key);

@@ -5,6 +5,7 @@ import BaseButton from "@/components/form/BaseButton.vue";
 import PasswordField from "@/components/form/PasswordField.vue";
 import { authApi } from "@/services/api";
 import { useModalStore } from "@/stores/modalStore";
+import PasswordRequirements from "@/components/form/PasswordRequirements.vue";
 
 const emit = defineEmits(["close"]);
 const modalStore = useModalStore();
@@ -173,36 +174,7 @@ async function submit() {
             @update:model-value="clearError('password')"
           />
 
-          <ul
-            class="grid grid-cols-1 gap-2 text-[10px] sm:grid-cols-2"
-            aria-label="เงื่อนไขรหัสผ่านใหม่"
-          >
-            <li
-              v-for="rule in rules"
-              :key="rule.label"
-              class="flex items-start gap-1.5"
-              :class="rule.passed ? 'text-green-700' : 'text-slate-400'"
-            >
-              <span
-                class="mt-0.5 flex h-3 w-3 shrink-0 items-center justify-center rounded-full border"
-                :class="
-                  rule.passed
-                    ? 'border-green-700 bg-green-700 text-white'
-                    : 'border-slate-400'
-                "
-                aria-hidden="true"
-              >
-                <Check v-if="rule.passed" :size="9" />
-              </span>
-
-              <span>
-                {{ rule.label }}
-                <span class="sr-only">
-                  {{ rule.passed ? "ผ่านแล้ว" : "ยังไม่ผ่าน" }}
-                </span>
-              </span>
-            </li>
-          </ul>
+          <PasswordRequirements :password="form.password" />
 
           <PasswordField
             id="change-confirm-password"

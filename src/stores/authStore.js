@@ -10,6 +10,7 @@ export const useAuthStore = defineStore('auth', {
     user: null,
     token: null,
     profileLoaded: false,
+    setupStep: null,
     inspectedFarm: null,
     inspectionVerified: false,
   }),
@@ -21,7 +22,7 @@ export const useAuthStore = defineStore('auth', {
     userRole: (state) => state.user?.user_role ?? null,
     isFarmSetupRequired: (state) =>
     state.user?.user_role === FARM_ADMIN &&
-    state.user?.farm_id == null,
+    (state.user?.farm_id == null || (state.setupStep != null && state.setupStep > 0)),
     isSuperAdmin() { return this.userRole === SUPER_ADMIN; },
     isFarmAdmin() { return this.userRole === FARM_ADMIN; },
     isFarmStaff() { return this.userRole === FARM_STAFF; },
@@ -29,6 +30,12 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    async fetchSetupStatus() {
+      const { data } = await authApi.setupStatus();
+      this.setupStep = data.step;
+      if (this.user) this.user.farm_id = data.farmId;
+      return data;
+    },
     inspectFarm(farm) {
       if (!this.isSuperAdmin) return;
       this.inspectedFarm = farm;
@@ -85,6 +92,7 @@ export const useAuthStore = defineStore('auth', {
       this.profileLoaded = false;
       this.token = null;
       this.user = null;
+      this.setupStep = null;
       sessionStorage.removeItem('inspectedFarm');
       [TOKEN_KEY, USER_KEY].forEach((k) => {
         localStorage.removeItem(k);

@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { Check, ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Plus, Search, Trash2, UserPlus, X } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/authStore';
 import { userManagementApi as api } from '@/services/api';
+import PasswordRequirements from '@/components/form/PasswordRequirements.vue';
 
 const auth = useAuthStore();
 const roles = ['Super Admin', 'Farm Admin', 'Farm Staff', 'Finance Staff'];
@@ -16,7 +17,6 @@ const editDialog = ref(null), deleteDialog = ref(null), successDialog = ref(null
 const showPassword = ref(false);
 const form = reactive({ username: '', password: '', role: '', farmId: '', active: true });
 const rules = computed(() => [form.password.length >= 8, /[A-Z]/.test(form.password) && /[a-z]/.test(form.password), /\d/.test(form.password), /[^A-Za-z0-9\s]/.test(form.password)]);
-const ruleLabels = ['ความยาวอย่างน้อย 8 ตัวอักษร', 'มีพิมพ์ใหญ่และพิมพ์เล็ก (A-Z, a-z)', 'มีตัวเลขอย่างน้อย 1 ตัว (0-9)', 'มีอักขระพิเศษ (@, #, $, % ฯลฯ)'];
 const canCreate = computed(() => /^[A-Za-z0-9._-]{4,24}$/.test(form.username) && form.role && rules.value.every(Boolean) && (form.role === 'Super Admin' || !auth.isSuperAdmin || form.farmId.trim()));
 const cards = computed(() => [{ key: '', label: 'ผู้ใช้ทั้งหมด', count: counts.value.all || 0 }, ...roles.slice(1).map(r => ({ key: r, label: r, count: counts.value[r] || 0 }))]);
 let sequence = 0, debounce;
@@ -112,7 +112,7 @@ async function remove() {
       <label v-if="auth.isSuperAdmin && form.role && form.role !== 'Super Admin'">รหัสฟาร์ม <em>*</em><input v-model="form.farmId" required maxlength="100" :disabled="busy" placeholder="เช่น FARM-001" /><small>ระบุรหัสฟาร์มที่มีอยู่ในระบบ</small></label>
       <label>ชื่อผู้ใช้ (Username) <em>*</em><input v-model="form.username" required pattern="[A-Za-z0-9._\-]{4,24}" minlength="4" maxlength="24" autocomplete="off" :disabled="busy" /><small>ตัวอักษรอังกฤษ ตัวเลข จุด ขีดกลาง หรือขีดล่าง ยาว 4–24 ตัว</small></label>
       <label>รหัสผ่านเริ่มต้น (Temporary Password) <em>*</em><span class="password-field"><input v-model="form.password" :type="showPassword ? 'text' : 'password'" required autocomplete="new-password" :disabled="busy" placeholder="ระบุรหัสผ่านอย่างน้อย 8 ตัวอักษร" /><button type="button" :aria-label="showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'" @click="showPassword = !showPassword"><component :is="showPassword ? EyeOff : Eye" :size="17" /></button></span></label>
-      <div class="strength"><span :style="{ width: `${rules.filter(Boolean).length * 25}%` }" /></div><div class="password-rules"><span v-for="(text, i) in ruleLabels" :key="text" :class="{ met: rules[i] }">{{ rules[i] ? '✓' : '○' }} {{ text }}</span></div>
+      <PasswordRequirements :password="form.password" />
       <p v-if="formError" class="error" role="alert">{{ formError }}</p><button class="primary full" :disabled="busy || !canCreate"><Check :size="17" />{{ busy ? 'กำลังบันทึก…' : 'สร้างผู้ใช้ใหม่' }}</button><button type="button" class="text-button" :disabled="busy" @click="creating = false; form.password = ''">ยกเลิก</button>
     </form>
     <Teleport to="body">

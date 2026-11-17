@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { adminFarmApi } from "@/services/api";
+import { useModalStore } from "@/stores/modalStore";
 import { useAuthStore } from "@/stores/authStore";
 import {
   SUPER_ADMIN as SA,
@@ -87,7 +88,7 @@ const routes = [
     children: [
 
       page("/superadmin", "superadmin", "หน้าแรก Super Admin", [SA], { component: () => import("@/views/farms/AllFarmsView.vue"), leavesInspection: true }),
-      page("/farmadmin", "farmadmin", "หน้าแรก Farm Admin", [FA]),
+      { path: "/farmadmin", redirect: "/dashboard" },
       page("/farmstaff", "farmstaff", "หน้าแรก Farm Staff", [FS]),
       page("/financestaff", "financestaff", "หน้าแรก Finance Staff", [FIN]),
 
@@ -95,7 +96,16 @@ const routes = [
         component: () => import("@/views/farms/AllFarmsView.vue"),
         leavesInspection: true,
       }), 
+      page("/farms/new/flocks", "new-flock", "เพิ่มฝูงไก่", [SA, FA], {
+        component: () => import("@/views/farms/FlockCreateView.vue"),
+        leavesInspection: true,
+      }),
+      page("/farms/new/houses", "new-house", "เพิ่มโรงเรือน", [SA, FA], {
+        component: () => import("@/views/farms/HouseCreateView.vue"),
+        leavesInspection: true,
+      }),
       page("/farms/new", "new-farm", "ลงทะเบียนฟาร์มใหม่", [SA], {
+        component: () => import("@/views/farms/FarmCreateView.vue"),
         leavesInspection: true,
       }), 
 
@@ -116,13 +126,15 @@ const routes = [
       }), 
 
       page("/farm/info", "farm-info", "ข้อมูลฟาร์ม", [SA, FA], {
-        component: () => import("@/views/farms/FarmInfoView.vue"),
+        component: () => import("@/views/farms/FarmInfoEntry.vue"),
         farmScoped: true,
       }), 
       page("/farm/houses", "farm-houses", "ข้อมูลโรงเรือน", [SA, FA, FS], {
+        component: () => import("@/views/farms/HouseCreateView.vue"),
         farmScoped: true,
       }), 
       page("/farm/flocks", "farm-flocks", "ข้อมูลฝูงไก่", [SA, FA, FS], {
+        component: () => import("@/views/farms/FlockCreateView.vue"),
         farmScoped: true,
       }), 
       page("/farm/settings", "farm-settings", "ตั้งค่าฟาร์ม", [SA], {
@@ -211,13 +223,24 @@ router.beforeEach(async (to) => {
       }
     }
   }
-  if (auth.isAuthenticated && auth.isFarmSetupRequired) {
-  const allowedBeforeFarmSetup = ['farm-info', 'account'];
-
-  if (!allowedBeforeFarmSetup.includes(to.name)) {
-    return { name: 'farm-info', replace: true };
+  if (auth.isAuthenticated && auth.isFarmAdmin) {
+    try {
+      await auth.fetchSetupStatus();
+    } catch {
+      useModalStore().openError({ message: "โหลดขั้นตอนตั้งค่าฟาร์มไม่สำเร็จ กรุณาลองใหม่" });
+      return false;
+    }
+    const setupRoutes = { 1: "farm-info", 2: "farm-houses", 3: "farm-flocks" };
+    const required = setupRoutes[auth.setupStep];
+    const viewingSavedFarm = auth.setupStep >= 2 && to.name === "farm-info";
+    const viewingSavedHouses = auth.setupStep === 3 && to.name === "farm-houses";
+    if (required && to.name !== required && !viewingSavedFarm && !viewingSavedHouses) {
+      return { name: required, replace: true };
+    }
+    if (!required && ["new-farm", "new-house", "new-flock"].includes(to.name)) {
+      return { name: "dashboard", replace: true };
+    }
   }
-}
 
   if (to.meta.public) {
     if (auth.isAuthenticated && auth.profileLoaded && auth.userRole) {

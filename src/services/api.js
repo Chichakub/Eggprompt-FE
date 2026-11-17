@@ -57,6 +57,7 @@ api.interceptors.response.use(
 );
 
 export const authApi = {
+  setupStatus: () => api.get("api/v1/farm-setup"),
   myFarm: () => api.get("api/v1/farms/me"),
   login: (payload) => api.post("api/v1/auth/login", payload),
   register: (payload) =>
@@ -98,4 +99,19 @@ export const adminFarmApi = {
   list: (params) => api.get('api/v1/admin/farms', { params }),
   summary: () => api.get('api/v1/admin/farms/summary'),
   detail: (id) => api.get(`api/v1/admin/farms/${encodeURIComponent(id)}`),
+};
+
+export const farmApi = {
+  updateOwn: (payload) => api.put("api/v1/farms/me", payload),
+  create: (payload) => api.post("api/v1/farms", payload),
+};
+
+export const houseApi = {
+  update: (id, payload) => api.put(`api/v1/houses/${id}`, payload),
+  list: (params) => api.get("api/v1/houses", { params }),
+  create: (payload) => api.post("api/v1/houses", payload),
+};
+
+export const flockApi = {
+  create: (payload) => api.post("api/v1/flocks", payload),
 };

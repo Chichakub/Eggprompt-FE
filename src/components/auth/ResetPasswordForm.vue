@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue';
 import { Check } from 'lucide-vue-next';
 import BaseForm from '@/components/form/BaseForm.vue';
 import PasswordField from '@/components/form/PasswordField.vue';
+import PasswordRequirements from '@/components/form/PasswordRequirements.vue';
 
 defineProps({
   loading: { type: Boolean, default: false },
@@ -69,22 +70,7 @@ function submit() {
       placeholder="ระบุรหัสผ่านใหม่" required :error="errors.password"
       @update:model-value="errors.password = ''; errors.confirmPassword = ''; emit('change')" />
 
-    <ul class="grid grid-cols-1 gap-2 text-[10px] sm:grid-cols-2" aria-label="เงื่อนไขรหัสผ่าน">
-      <li v-for="rule in passwordRules" :key="rule.label" class="flex items-start gap-1.5"
-        :class="rule.passed ? 'text-green-700' : 'text-slate-400'">
-        <span class="mt-0.5 flex h-3 w-3 shrink-0 items-center justify-center rounded-full border"
-          :class="rule.passed ? 'border-green-700 bg-green-700 text-white' : 'border-slate-400'" aria-hidden="true">
-          <Check v-if="rule.passed" :size="9" />
-        </span>
-
-        <span>
-          {{ rule.label }}
-          <span class="sr-only">
-            {{ rule.passed ? 'ผ่านแล้ว' : 'ยังไม่ผ่าน' }}
-          </span>
-        </span>
-      </li>
-    </ul>
+    <PasswordRequirements :password="form.password" />
 
     <PasswordField id="confirm-password" v-model="form.confirmPassword"
       label="ยืนยันรหัสผ่านใหม่ (Confirm New Password)" placeholder="ระบุรหัสผ่านใหม่อีกครั้งเพื่อยืนยัน" required
