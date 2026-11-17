@@ -130,7 +130,11 @@ const routes = [
         farmScoped: true,
       }), 
       page("/farm/houses", "farm-houses", "ข้อมูลโรงเรือน", [SA, FA, FS], {
-        component: () => import("@/views/farms/HouseCreateView.vue"),
+        component: () => import("@/views/farms/HouseEntry.vue"),
+        farmScoped: true,
+      }),
+      page("/farm/houses/new", "farm-houses-new", "เพิ่มโรงเรือน", [SA, FA], {
+        component: () => import("@/views/houses/AddHouseView.vue"),
         farmScoped: true,
       }), 
       page("/farm/flocks", "farm-flocks", "ข้อมูลฝูงไก่", [SA, FA, FS], {

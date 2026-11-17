@@ -107,9 +107,10 @@ export const farmApi = {
 };
 
 export const houseApi = {
-  update: (id, payload) => api.put(`api/v1/houses/${id}`, payload),
   list: (params) => api.get("api/v1/houses", { params }),
   create: (payload) => api.post("api/v1/houses", payload),
+  update: (id, payload) => api.put(`api/v1/houses/${id}`, payload),
+  remove: (id) => api.delete(`api/v1/houses/${id}`),
 };
 
 export const flockApi = {
