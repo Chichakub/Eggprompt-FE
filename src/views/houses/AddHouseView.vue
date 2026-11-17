@@ -52,7 +52,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1520px]">
+  <div class="mx-auto max-w-380">
     <h1 class="text-2xl font-bold text-[#202b21]">เพิ่มโรงเรือน</h1>
 
     <form class="mt-6" novalidate @submit.prevent="submit">
