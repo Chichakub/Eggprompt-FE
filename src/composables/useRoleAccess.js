@@ -8,7 +8,9 @@ export function useRoleAccess() {
 
   const canManageUser = computed(() => auth.isSuperAdmin || auth.isFarmAdmin);
 
+  const canManageHouse = computed(() => auth.isSuperAdmin || auth.isFarmAdmin);
+
   const hasRole = (...roles) => roles.includes(auth.userRole);
 
-  return { canViewSummary, canManageUser, hasRole };
+  return { canViewSummary, canManageUser, canManageHouse, hasRole };
 }
