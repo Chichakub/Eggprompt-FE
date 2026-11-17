@@ -102,6 +102,7 @@ export const adminFarmApi = {
 };
 
 export const farmApi = {
+  updateAsAdmin: (id, payload) => api.put(`api/v1/admin/farms/${encodeURIComponent(id)}`, payload),
   updateOwn: (payload) => api.put("api/v1/farms/me", payload),
   create: (payload) => api.post("api/v1/farms", payload),
 };

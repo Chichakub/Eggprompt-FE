@@ -17,6 +17,7 @@ const page = (path, name, title, roles, opts = {}) => ({
   path,
   name,
   component: opts.component ?? Placeholder,
+  props: opts.props,
   meta: {
     title,
     roles,
@@ -106,6 +107,10 @@ const routes = [
       }),
       page("/farms/new", "new-farm", "ลงทะเบียนฟาร์มใหม่", [SA], {
         component: () => import("@/views/farms/FarmCreateView.vue"),
+        props: (route) => ({
+          editExisting: typeof route.query.farmId === "string" && !!route.query.farmId,
+          farmId: typeof route.query.farmId === "string" ? route.query.farmId : "",
+        }),
         leavesInspection: true,
       }), 
 

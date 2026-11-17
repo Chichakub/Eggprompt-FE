@@ -1,4 +1,5 @@
 <script setup>
+import { isValidFormDate } from "@/composables/dateValidation";
 import { nextTick, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Check, Plus, X } from "lucide-vue-next";
@@ -36,7 +37,11 @@ function removeHouse(id) {
 
 function validateHouse(house, errors) {
   errors.houseName = house.houseName.trim() ? "" : "กรุณากรอกชื่อโรงเรือน";
-  errors.openingDate = house.openingDate ? "" : "กรุณาระบุวันที่เปิดใช้งาน";
+  errors.openingDate = !house.openingDate
+    ? "กรุณาระบุวันที่เปิดใช้งาน"
+    : isValidFormDate(house.openingDate)
+      ? ""
+      : "กรุณาระบุวันที่ให้ถูกต้อง โดยใช้ปี ค.ศ. 4 หลัก เช่น 2026";
 
   for (const [field, label] of [["widthM", "ความกว้าง"], ["lengthM", "ความยาว"]]) {
     const value = house[field].trim();
@@ -260,7 +265,10 @@ onMounted(loadHouses);
         <BaseButton
           variant="secondary"
           :disabled="isSubmitting || loading || loadFailed"
-          @click="router.push({ name: auth.isSuperAdmin ? 'all-farms' : 'farm-info' })"
+          @click="router.push({
+            name: auth.isSuperAdmin ? 'new-farm' : 'farm-info',
+            query: auth.isSuperAdmin ? { farmId: route.query.farmId } : {},
+          })"
         >
           ย้อนกลับ
         </BaseButton>

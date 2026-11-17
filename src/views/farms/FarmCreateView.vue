@@ -1,4 +1,5 @@
 <script setup>
+import { isValidFormDate } from "@/composables/dateValidation";
 import { nextTick, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { Check, Plus, X } from "lucide-vue-next";
@@ -8,13 +9,16 @@ import FarmAccountFields from "@/components/farm/FarmAccountFields.vue";
 import { FARM_ADMIN } from "@/constants/roles";
 
 import { useAuthStore } from "@/stores/authStore";
-import { authApi, farmApi } from "@/services/api";
+import { adminFarmApi, authApi, farmApi } from "@/services/api";
 
 import ConfirmModal from "@/components/modals/ConfirmModal.vue";
 
 const props = defineProps({
   editExisting: { type: Boolean, default: false },
+  saveOnly: { type: Boolean, default: false },
+  farmId: { type: String, default: "" },
 });
+const emit = defineEmits(["saved", "cancel"]);
 const loadingFarm = ref(false);
 const farmLoadFailed = ref(false);
 const router = useRouter();
@@ -79,6 +83,10 @@ const accounts = ref([]);
 let nextAccountId = 1;
 
 function cancelSetup() {
+  if (props.saveOnly) {
+    emit("cancel");
+    return;
+  }
   if (auth.isFarmAdmin) {
     showPauseModal.value = true;
   } else {
@@ -138,6 +146,10 @@ async function submit(event) {
     farmErrors[field.name] = farm[field.name].trim()
       ? ""
       : `กรุณาระบุ${field.label}`;
+  }
+
+  if (!farmErrors.operationStartDate && !isValidFormDate(farm.operationStartDate)) {
+    farmErrors.operationStartDate = "กรุณาระบุวันที่ให้ถูกต้อง โดยใช้ปี ค.ศ. 4 หลัก เช่น 2026";
   }
 
   if (!farmErrors.taxId && !/^[0-9]{13}$/.test(farm.taxId.trim())) {
@@ -203,7 +215,7 @@ async function submit(event) {
     return;
   }
 
-  if (auth.isSuperAdmin && !accounts.value.some(({ details }) => details.role === FARM_ADMIN)) {
+  if (!props.editExisting && auth.isSuperAdmin && !accounts.value.some(({ details }) => details.role === FARM_ADMIN)) {
     errorMessage.value = "กรุณาเพิ่มบัญชี Farm Admin อย่างน้อย 1 บัญชี";
     return;
   }
@@ -221,10 +233,15 @@ async function submit(event) {
 
   isSubmitting.value = true;
   try {
-    const { data } = props.editExisting
-      ? await farmApi.updateOwn(payload)
-      : await farmApi.create(payload);
-    createdFarmId.value = data.farmId;
+    let response;
+    if (!props.editExisting) {
+      response = await farmApi.create(payload);
+    } else if (auth.isSuperAdmin) {
+      response = await farmApi.updateAsAdmin(props.farmId, payload);
+    } else {
+      response = await farmApi.updateOwn(payload);
+    }
+    createdFarmId.value = response.data.farmId;
   } catch (error) {
     const response = error.response;
     const duplicateMessage = "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว";
@@ -252,6 +269,10 @@ async function submit(event) {
     isSubmitting.value = false;
   }
 
+  if (createdFarmId.value && props.saveOnly) {
+    emit("saved");
+    return;
+  }
   if (createdFarmId.value) await openHouseStep();
 }
 
@@ -279,7 +300,9 @@ async function loadFarm() {
   farmLoadFailed.value = false;
   clearError();
   try {
-    const { data } = await authApi.myFarm();
+    const { data } = auth.isSuperAdmin
+      ? await adminFarmApi.detail(props.farmId)
+      : await authApi.myFarm();
     for (const { name } of fields) farm[name] = data[name] ?? "";
   } catch (error) {
     farmLoadFailed.value = true;
@@ -384,7 +407,7 @@ onMounted(() => {
           <template #icon>
             <Check :size="16" aria-hidden="true" />
           </template>
-          ถัดไป
+          {{ saveOnly ? "บันทึก" : "ถัดไป" }}
         </BaseButton>
       </div>
     </form>

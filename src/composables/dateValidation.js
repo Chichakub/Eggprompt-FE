@@ -1,0 +1,9 @@
+export function isValidFormDate(value) {
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value)) return false;
+
+  const year = Number(value.slice(0, 4));
+  if (year < 1) return false;
+
+  const date = new Date(value + "T00:00:00Z");
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}

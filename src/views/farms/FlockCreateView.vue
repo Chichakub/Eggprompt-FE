@@ -1,4 +1,5 @@
 <script setup>
+import { isValidFormDate } from "@/composables/dateValidation";
 import { nextTick, onMounted, reactive, ref } from "vue";
 import { ChevronDown } from "lucide-vue-next";
 import { useRoute, useRouter } from "vue-router";
@@ -47,6 +48,9 @@ async function submit(event) {
     errors[field.name] = !field.optional && !flock[field.name].trim()
       ? `กรุณาระบุ${field.label}`
       : "";
+  }
+  if (!errors.receivedDate && !isValidFormDate(flock.receivedDate)) {
+    errors.receivedDate = "กรุณาระบุวันที่ให้ถูกต้อง โดยใช้ปี ค.ศ. 4 หลัก เช่น 2026";
   }
   errors.breed = breedId.value ? "" : "กรุณาเลือกสายพันธุ์";
   errors.house = houseId.value ? "" : "กรุณาเลือกโรงเรือน";
