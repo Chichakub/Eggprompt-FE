@@ -18,15 +18,16 @@ api.interceptors.request.use((config) => {
     return config;
   }
   const auth = useAuthStore();
-  if (auth.isInspecting && (!config.method || config.method.toLowerCase() === 'get')
-      && /(?:admin\/users|v1\/houses)(?:[/?]|$)/.test(config.url || '')) {
-    config.params = { ...config.params, farmId: auth.effectiveFarmId };
-  }
   const token =
-    useAuthStore().token ||
+    auth.token ||
     localStorage.getItem("token") ||
     sessionStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+    if (auth.inspectionVerified && auth.currentFarmId) {
+      config.headers.set('farm_id', auth.currentFarmId);
+    }
+  }
   return config;
 });
 

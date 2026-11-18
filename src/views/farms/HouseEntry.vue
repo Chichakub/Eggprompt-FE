@@ -8,5 +8,5 @@ const auth = useAuthStore();
 
 <template>
   <HouseCreateView v-if="auth.isFarmAdmin && auth.isFarmSetupRequired" />
-  <HousesView v-else />
+  <HousesView v-else :key="auth.effectiveFarmId" />
 </template>
