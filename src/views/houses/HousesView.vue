@@ -62,7 +62,6 @@ async function saveEdit() {
   const id = selected.value.houseId;
   saving.value = true;
   try {
-    // ส่งครบทุกฟิลด์ (BE ทับฟิลด์ที่ไม่ส่งเป็น null) ช่องเสริมที่ว่าง = ล้างค่า
     await houseApi.update(id, toPayload(form.value, { withStatus: true }));
     editing.value = false;
     await load(id);
@@ -95,13 +94,6 @@ const specs = computed(() => {
   return [
     ['ขนาด', `${h.widthM} × ${h.lengthM} ม. (${fmtNum(h.areaSqm)} ตร.ม.)`],
     ['ความจุ', `${fmtNum(h.capacity)} ตัว`],
-    ['ประเภทโรงเรือน', h.houseType],
-    ['วันที่เปิดใช้งาน', fmtDate(h.openingDate)],
-    ['พัดลมระบายอากาศ', h.ventilationFanCount != null ? `${h.ventilationFanCount} ตัว` : '-'],
-    ['ระบบน้ำ', h.waterSystem || '-'],
-    ['ระบบให้อาหาร', h.feedingSystem || '-'],
-    ['การเก็บไข่', h.eggCollectionSystem || '-'],
-    ['โปรแกรมแสง', h.lightingProgram || '-'],
     ['สร้างหรือปรับปรุงล่าสุด', fmtDate(h.lastBuiltOrRenovatedDate)],
   ];
 });
@@ -153,7 +145,14 @@ const badge = (s) => (s === 'ACTIVE' ? 'bg-[#dcefd8] text-[#2f6b2a]' : 'bg-[#dbe
 
           <div v-if="canManageHouse" class="flex gap-2">
             <template v-if="!editing">
-              <BaseButton variant="secondary" @click="startEdit"><template #icon><Pencil :size="13" /></template>แก้ไขข้อมูล</BaseButton>
+              <BaseButton
+                variant="secondary"
+                class="border-[#d3c8b3]! bg-[#fdfcfa]! text-[#493f32]! hover:bg-[#f5f0e6]!"
+                @click="startEdit"
+              >
+                <template #icon><Pencil :size="13" /></template>
+                แก้ไขข้อมูล
+              </BaseButton>
               <button type="button" class="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-[#c94b4b] px-4 text-xs font-semibold text-white hover:bg-[#b53f3f]" @click="showDelete = true">
                 <Trash2 :size="13" aria-hidden="true" /> ลบโรงเรือน
               </button>

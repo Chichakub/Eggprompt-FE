@@ -16,8 +16,9 @@ export const useAuthStore = defineStore('auth', {
   }),
 
   getters: {
-    isInspecting: (state) => state.user?.user_role === SUPER_ADMIN && !!state.inspectedFarm,
-    effectiveFarmId: (state) => state.user?.user_role === SUPER_ADMIN ? state.inspectedFarm?.farmId : state.user?.farm_id,
+    currentFarmId: (state) => state.user?.user_role === SUPER_ADMIN ? state.inspectedFarm?.farmId ?? null : null,
+    isInspecting() { return this.currentFarmId !== null; },
+    effectiveFarmId() { return this.isSuperAdmin ? this.currentFarmId : this.user?.farm_id; },
     isAuthenticated: (state) => !!state.token,
     userRole: (state) => state.user?.user_role ?? null,
     isFarmSetupRequired: (state) =>
