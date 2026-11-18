@@ -18,6 +18,10 @@ api.interceptors.request.use((config) => {
     return config;
   }
   const auth = useAuthStore();
+  if (auth.isInspecting && (!config.method || config.method.toLowerCase() === 'get')
+      && /(?:admin\/users|v1\/houses|v1\/flocks)(?:[/?]|$)/.test(config.url || '')) {
+    config.params = { ...config.params, farmId: auth.effectiveFarmId };
+  }
   const token =
     auth.token ||
     localStorage.getItem("token") ||
@@ -42,12 +46,12 @@ api.interceptors.response.use(
       url.includes("/auth/forgot-password") ||
       url.includes("/auth/reset-password");
 
-    if (status === 401 && !isPublicAuthCall) {
-      useAuthStore().clearLoginSession();
-    }
-    if (status === 401 && !isPublicAuthCall) {
-      localStorage.removeItem("token");
-      sessionStorage.removeItem("inspectedFarm");
+    const auth = useAuthStore();
+    const requestAuthorization = error.config?.headers?.Authorization;
+    // A response from a previous session must not invalidate a newer login.
+    if (status === 401 && !isPublicAuthCall && auth.token
+        && requestAuthorization === `Bearer ${auth.token}`) {
+      auth.clearLoginSession();
       const loginPath = `${import.meta.env.BASE_URL}login`;
       if (window.location.pathname !== loginPath) {
         window.location.href = loginPath;
@@ -116,5 +120,9 @@ export const houseApi = {
 };
 
 export const flockApi = {
+  list: (params) => api.get("api/v1/flocks", { params }),
+  breeds: () => api.get("api/v1/flocks/breeds"),
+  update: (id, payload) => api.put(`api/v1/flocks/${id}`, payload),
+  remove: (id) => api.delete(`api/v1/flocks/${id}`),
   create: (payload) => api.post("api/v1/flocks", payload),
 };

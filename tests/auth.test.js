@@ -92,7 +92,7 @@ test('API sends sessionStorage token and clears all session data on 401', async 
     source('services/api.js').replace('import.meta.env.VITE_API_URL', "''").replaceAll('import.meta.env.BASE_URL', JSON.stringify('/')).replaceAll('export const ', 'const '))
     ({ create: () => api }, () => auth, local, session, window);
   assert.equal(request({ headers: {} }).headers.Authorization, 'Bearer session-jwt');
-  await assert.rejects(rejected({ response: { status: 401 }, config: { url: '/api/v1/auth/me' } }));
+  await assert.rejects(rejected({ response: { status: 401 }, config: request({ url: '/api/v1/auth/me', headers: {} }) }));
   assert.equal(auth.token, null);
   assert.equal(session.getItem('token'), null);
   assert.equal(window.location.href, '/login');
@@ -123,6 +123,7 @@ test('API sends the verified farm header only during Super Admin inspection', ()
 test('deployment base is preserved for API requests, router history and login redirects', async () => {
   const base = '/capstone26/cp26cs1/';
   const { auth, local, session } = setup();
+  auth.setLoginSession({ token: 'deployment-jwt', user: {} }, false);
   let options, rejected;
   const urls = [];
   const api = {
@@ -140,7 +141,7 @@ test('deployment base is preserved for API requests, router history and login re
   assert.deepEqual(urls.map(url => new URL(url, `https://example.com${options.baseURL}`).pathname), [
     `${base}api/v1/auth/login`, `${base}api/v1/auth/me`, `${base}api/v1/admin/users`, `${base}api/v1/admin/users/5`,
   ]);
-  await assert.rejects(rejected({ response: { status: 401 }, config: { url: 'api/v1/auth/me' } }));
+  await assert.rejects(rejected({ response: { status: 401 }, config: { url: 'api/v1/auth/me', headers: { Authorization: 'Bearer deployment-jwt' } } }));
   assert.equal(window.location.href, `${base}login`);
   let historyBase;
   new Function('adminFarmApi', 'createRouter', 'createWebHistory', 'useAuthStore', 'SA', 'FA', 'FS', 'FIN', 'ALL_ROLES', 'defaultPathFor',
@@ -230,4 +231,49 @@ test('Farm Admin can return from flock setup to saved houses', async () => {
   authApi.setupStatus = async () => ({ data: { step: 3, farmId: 'farm-1' } });
   assert.equal(await guard({ name: 'farm-houses', meta: { roles: [roles.FARM_ADMIN] } }), true);
   assert.deepEqual(await guard({ name: 'dashboard', meta: {} }), { name: 'farm-flocks', replace: true });
+});
+
+test('existing Farm Admin uses flock menu normally and new sessions do not inherit setup state', async () => {
+  const {auth, authApi, guard} = setup();
+  auth.token='jwt';auth.profileLoaded=true;auth.user={user_id:7,user_role:roles.FARM_ADMIN,farm_id:'F1'};
+  authApi.setupStatus=async()=>({data:{step:0,farmId:'F1'}});
+  assert.equal(await guard({name:'farm-flocks',meta:{roles:[roles.FARM_ADMIN],farmScoped:true}}),true);
+  assert.equal(await guard({name:'farm-flocks-new',meta:{roles:[roles.FARM_ADMIN],farmScoped:true}}),true);
+  auth.setupStep=3;
+  auth.setLoginSession({token:'another',user:{user_id:9,user_role:roles.FARM_ADMIN,farm_id:'F2'}});
+  assert.equal(auth.setupStep,null);
+});
+
+
+test('late 401 responses after logout or a new login do not clear the current session', async () => {
+  const { auth, local, session } = setup();
+  let rejected;
+  const api = { interceptors: { request: { use() {} }, response: { use: (_, fn) => { rejected = fn; } } } };
+  const window = { location: { pathname: '/farm/flocks', href: '' } };
+  new Function('axios', 'useAuthStore', 'localStorage', 'sessionStorage', 'window',
+    source('services/api.js').replace('import.meta.env.VITE_API_URL', "''").replaceAll('import.meta.env.BASE_URL', JSON.stringify('/')).replaceAll('export const ', 'const '))
+    ({ create: () => api }, () => auth, local, session, window);
+  const oldResponse = { response: { status: 401 }, config: { url: 'api/v1/flocks', headers: { Authorization: 'Bearer old-jwt' } } };
+  auth.clearLoginSession();
+  await assert.rejects(rejected(oldResponse));
+  assert.equal(window.location.href, '');
+  auth.setLoginSession({ token: 'new-jwt', user: {} }, false);
+  await assert.rejects(rejected(oldResponse));
+  assert.equal(auth.token, 'new-jwt');
+  assert.equal(window.location.href, '');
+});
+
+test('farm and flock loaders do not request protected data after logout', async () => {
+  for (const [file, end] of [['views/flocks/FlocksView.vue', '\nconst '], ['views/farms/FarmInfoView.vue', '\nonBeforeUnmount']]) {
+    const text = readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
+    const start = text.indexOf('async function load(');
+    const body = file.includes('FlocksView') ? text.slice(start, text.indexOf('\n', start)) : text.slice(start, text.indexOf(end, start));
+    const rows = { value: ['previous data'] }, farm = { value: {} }, loading = { value: true };
+    let calls = 0;
+    const api = { list: () => { calls++; }, detail: () => { calls++; }, myFarm: () => { calls++; } };
+    await new Function('auth', 'rows', 'farm', 'loading', 'error', 'flockApi', 'adminFarmApi', 'authApi', `let request = 0; ${body}; return load();`)
+      ({ isAuthenticated: false }, rows, farm, loading, { value: '' }, api, api, api);
+    assert.equal(calls, 0, file);
+    assert.equal(loading.value, false);
+  }
 });

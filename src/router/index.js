@@ -143,9 +143,12 @@ const routes = [
         farmScoped: true,
       }), 
       page("/farm/flocks", "farm-flocks", "ข้อมูลฝูงไก่", [SA, FA, FS], {
-        component: () => import("@/views/farms/FlockCreateView.vue"),
+        component: () => import("@/views/farms/FlockEntry.vue"),
         farmScoped: true,
       }), 
+      page("/farm/flocks/new", "farm-flocks-new", "เพิ่มฝูงไก่", [SA, FA, FS], {
+        component: () => import("@/views/farms/FlockCreateView.vue"), farmScoped: true,
+      }),
       page("/farm/settings", "farm-settings", "ตั้งค่าฟาร์ม", [SA], {
         farmScoped: true,
       }), 

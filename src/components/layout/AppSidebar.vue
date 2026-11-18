@@ -54,6 +54,19 @@ const closedGroups = ref(
 watch(() => auth.isInspecting, () => {
   closedGroups.value = new Set(menu.value.filter(item => item.key && item.key !== 'farm').map(item => item.key));
 });
+async function leaveInspection() {
+  await router.push('/farms');
+  auth.leaveInspection();
+}
+
+watch([() => router.currentRoute.value.path, menu], ([path]) => {
+  for (const item of menu.value) {
+    if (item.children?.some(child => path === child.to || path.startsWith(`${child.to}/`))) {
+      closedGroups.value.delete(item.key);
+    }
+  }
+}, { immediate: true });
+
 const isOpen = (key) => (auth.isFarmSetupRequired && key === "farm") || !closedGroups.value.has(key);
 function toggleGroup(key) {
   if (closedGroups.value.has(key)) closedGroups.value.delete(key);
