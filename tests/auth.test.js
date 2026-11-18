@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { defineStore, createPinia, setActivePinia } from 'pinia';
+import { AxiosHeaders } from 'axios';
 import * as roles from '../src/constants/roles.js';
 
 const source = (file) => readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8')
@@ -95,6 +96,28 @@ test('API sends sessionStorage token and clears all session data on 401', async 
   assert.equal(auth.token, null);
   assert.equal(session.getItem('token'), null);
   assert.equal(window.location.href, '/login');
+});
+
+test('API sends the verified farm header only during Super Admin inspection', () => {
+  const { auth, local, session } = setup();
+  let request;
+  const api = { interceptors: { request: { use: fn => { request = fn; } }, response: { use() {} } } };
+  new Function('axios', 'useAuthStore', 'localStorage', 'sessionStorage',
+    source('services/api.js').replace('import.meta.env.VITE_API_URL', "''").replaceAll('import.meta.env.BASE_URL', JSON.stringify('/')).replaceAll('export const ', 'const '))
+    ({ create: () => api }, () => auth, local, session);
+  const farmHeader = (url = 'api/v1/houses') => request({ url, method: 'post', headers: new AxiosHeaders() }).headers.get('farm_id');
+
+  auth.setLoginSession({ token: 'jwt', user: { user_id: 1, user_role: roles.SUPER_ADMIN } });
+  assert.equal(farmHeader(), undefined);
+  auth.inspectFarm({ farmId: 'F1' });
+  assert.equal(farmHeader(), 'F1');
+  assert.equal(farmHeader('api/v1/auth/login'), undefined);
+  auth.restoreSession();
+  assert.equal(farmHeader(), undefined);
+  auth.inspectFarm({ farmId: 'F2' });
+  assert.equal(farmHeader(), 'F2');
+  auth.leaveInspection();
+  assert.equal(farmHeader(), undefined);
 });
 
 test('deployment base is preserved for API requests, router history and login redirects', async () => {
