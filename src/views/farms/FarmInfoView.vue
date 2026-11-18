@@ -16,8 +16,11 @@ async function saved() {
 const farm = ref(null), loading = ref(false), error = ref('');
 let request = 0;
 async function load() {
-  if (auth.isSuperAdmin && !auth.effectiveFarmId) return;
-  const id = ++request; farm.value = null; loading.value = true; error.value = '';
+  const id = ++request;
+  if (!auth.isAuthenticated || (auth.isSuperAdmin && !auth.effectiveFarmId)) {
+    farm.value = null; loading.value = false; return;
+  }
+  farm.value = null; loading.value = true; error.value = '';
   try {
     const {data} = auth.isSuperAdmin ? await adminFarmApi.detail(auth.effectiveFarmId) : await authApi.myFarm();
     if (id !== request) return;

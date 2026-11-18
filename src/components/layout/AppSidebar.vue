@@ -59,6 +59,14 @@ async function leaveInspection() {
   auth.leaveInspection();
 }
 
+watch([() => router.currentRoute.value.path, menu], ([path]) => {
+  for (const item of menu.value) {
+    if (item.children?.some(child => path === child.to || path.startsWith(`${child.to}/`))) {
+      closedGroups.value.delete(item.key);
+    }
+  }
+}, { immediate: true });
+
 const isOpen = (key) => (auth.isFarmSetupRequired && key === "farm") || !closedGroups.value.has(key);
 function toggleGroup(key) {
   if (closedGroups.value.has(key)) closedGroups.value.delete(key);

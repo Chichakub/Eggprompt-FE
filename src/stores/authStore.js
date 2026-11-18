@@ -52,6 +52,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     setLoginSession({ token, user }, remember = true) {
+      this.setupStep = null;
       this.leaveInspection();
       const storage = remember ? localStorage : sessionStorage;
       const other = remember ? sessionStorage : localStorage;
