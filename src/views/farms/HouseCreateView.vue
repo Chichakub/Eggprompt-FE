@@ -1,11 +1,11 @@
 <script setup>
-import { isValidFormDate } from "@/composables/dateValidation";
+import { emptyHouseForm, fromHouse, toPayload, validateHouse } from "@/composables/houseUtils";
 import { nextTick, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { Check, Plus, X } from "lucide-vue-next";
 import { useAuthStore } from "@/stores/authStore";
 import BaseButton from "@/components/form/BaseButton.vue";
-import BaseInput from "@/components/form/BaseInput.vue";
+import HouseFormFields from "@/components/houses/HouseFormFields.vue";
 
 import { houseApi } from "@/services/api";
 
@@ -23,7 +23,7 @@ let nextId = 1;
 function addHouse() {
   houses.value.push({
     id: nextId++,
-    data: { houseName: "", openingDate: "", widthM: "", lengthM: "", capacity: "" },
+    data: emptyHouseForm(),
     errors: {},
     saved: false,
   });
@@ -35,43 +35,13 @@ function removeHouse(id) {
   status.value = "";
 }
 
-function validateHouse(house, errors) {
-  errors.houseName = house.houseName.trim() ? "" : "กรุณากรอกชื่อโรงเรือน";
-  errors.openingDate = !house.openingDate
-    ? "กรุณาระบุวันที่เปิดใช้งาน"
-    : isValidFormDate(house.openingDate)
-      ? ""
-      : "กรุณาระบุวันที่ให้ถูกต้อง โดยใช้ปี ค.ศ. 4 หลัก เช่น 2026";
-
-  for (const [field, label] of [["widthM", "ความกว้าง"], ["lengthM", "ความยาว"]]) {
-    const value = house[field].trim();
-
-    if (!value) {
-      errors[field] = `กรุณาระบุ${label}`;
-    } else if (!/^\d{1,6}(\.\d{1,2})?$/.test(value) || Number(value) <= 0) {
-      errors[field] = `${label}ต้องมากกว่า 0 ใช้จำนวนเต็มได้ไม่เกิน 6 หลักและทศนิยมไม่เกิน 2 ตำแหน่ง`;
-    } else {
-      errors[field] = "";
-    }
-  }
-
-  const capacity = house.capacity.trim();
-  if (!capacity) {
-    errors.capacity = "กรุณาระบุความจุ";
-  } else if (!/^\d+$/.test(capacity) || Number(capacity) < 1 || Number(capacity) > 2147483647) {
-    errors.capacity = "ความจุต้องเป็นจำนวนเต็มตั้งแต่ 1 ถึง 2,147,483,647";
-  } else {
-    errors.capacity = "";
-  }
-}
-
 async function submit(event) {
   if (isSubmitting.value || loading.value || loadFailed.value) return;
   const form = event.currentTarget;
   errorMessage.value = "";
   status.value = "";
   const pending = houses.value.filter((entry) => !entry.saved);
-  for (const { data, errors } of pending) validateHouse(data, errors);
+  for (const entry of pending) entry.errors = validateHouse(entry.data);
   if (houses.value.some(({ errors }) => Object.values(errors).some(Boolean))) {
     await nextTick();
     form.querySelector('[aria-invalid="true"]')?.focus();
@@ -88,15 +58,7 @@ async function submit(event) {
     for (const entry of pending) {
       const { data } = entry;
       try {
-        const payload = {
-          ...entry.existingDetails,
-          ...(auth.isSuperAdmin ? { farmId } : {}),
-          houseName: data.houseName.trim(),
-          openingDate: data.openingDate,
-          widthM: data.widthM.trim(),
-          lengthM: data.lengthM.trim(),
-          capacity: Number(data.capacity),
-        };
+        const payload = toPayload(data, { farmId: auth.isSuperAdmin ? farmId : undefined });
         if (entry.houseId) {
           await houseApi.update(entry.houseId, payload);
         } else {
@@ -139,18 +101,7 @@ async function loadHouses() {
     houses.value = data.map((house) => ({
       id: nextId++,
       houseId: house.houseId,
-      existingDetails: Object.fromEntries(
-        ["houseType", "status", "ventilationFanCount", "waterSystem", "feedingSystem",
-          "eggCollectionSystem", "lightingProgram", "lastBuiltOrRenovatedDate"]
-          .map((field) => [field, house[field]]),
-      ),
-      data: {
-        houseName: house.houseName,
-        openingDate: house.openingDate,
-        widthM: String(house.widthM),
-        lengthM: String(house.lengthM),
-        capacity: String(house.capacity),
-      },
+      data: fromHouse(house),
       errors: {},
       saved: false,
     }));
@@ -192,57 +143,7 @@ onMounted(loadHouses);
           </button>
         </div>
 
-        <BaseInput
-          :id="`house-${entry.id}-name`"
-          v-model="entry.data.houseName"
-          :error="entry.errors.houseName"
-          @update:model-value="entry.errors.houseName = ''"
-          label="ชื่อโรงเรือน"
-          placeholder="เช่น เล้า 7"
-          :maxlength="100"
-          required
-        />
-
-        <BaseInput
-          :id="`house-${entry.id}-opening-date`"
-          v-model="entry.data.openingDate"
-          :error="entry.errors.openingDate"
-          @update:model-value="entry.errors.openingDate = ''"
-          label="วันที่เปิดใช้งานโรงเรือน"
-          type="date"
-          required
-        />
-
-        <h3 class="border-b border-[#e9dfd0] pb-2 text-sm font-bold">
-          ขนาดและความจุ
-        </h3>
-
-        <BaseInput
-          :id="`house-${entry.id}-width`"
-          v-model="entry.data.widthM"
-          :error="entry.errors.widthM"
-          @update:model-value="entry.errors.widthM = ''"
-          label="ความกว้าง (เมตร)"
-          required
-        />
-
-        <BaseInput
-          :id="`house-${entry.id}-length`"
-          v-model="entry.data.lengthM"
-          :error="entry.errors.lengthM"
-          @update:model-value="entry.errors.lengthM = ''"
-          label="ความยาว (เมตร)"
-          required
-        />
-
-        <BaseInput
-          :id="`house-${entry.id}-capacity`"
-          v-model="entry.data.capacity"
-          :error="entry.errors.capacity"
-          @update:model-value="entry.errors.capacity = ''"
-          label="ความจุ (ตัว)"
-          required
-        />
+        <HouseFormFields v-model="entry.data" :errors="entry.errors" :id-prefix="`house-${entry.id}`" />
         <p v-if="entry.saved" class="text-xs text-[#435638]">บันทึกแล้ว</p>
       </fieldset>
 

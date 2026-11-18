@@ -27,10 +27,12 @@ async function submit() {
   items.forEach((it) => { it.errors = validateHouse(it.form); if (Object.keys(it.errors).length) ok = false; });
   if (!ok) return;
 
-  // ชื่อซ้ำกันเองในหน้าเดียวกัน
   const names = items.map((it) => it.form.houseName.trim());
-  const dup = names.findIndex((n, i) => names.indexOf(n) !== i);
-  if (dup !== -1) { items[dup].errors = { houseName: 'ชื่อโรงเรือนซ้ำกับที่กรอกไว้ด้านบน' }; return; }
+  const duplicate = names.findIndex((name, index) => names.indexOf(name) !== index);
+  if (duplicate !== -1) {
+    items[duplicate].errors = { houseName: 'ชื่อโรงเรือนซ้ำกับที่กรอกไว้ด้านบน' };
+    return;
+  }
 
   submitting.value = true;
   try {
@@ -40,7 +42,7 @@ async function submit() {
         await houseApi.create(toPayload(it.form, { farmId: auth.isSuperAdmin ? auth.effectiveFarmId : undefined }));
         items.shift();
       } catch (e) {
-        modal.openError({ title: 'เพิ่มโรงเรือนไม่สำเร็จ', message: `${it.form.houseName}: ${apiMessage(e)}` });
+        modal.openError({ title: 'เพิ่มโรงเรือนไม่สำเร็จ', message: `${it.form.houseName.trim()}: ${apiMessage(e)}` });
         return;
       }
     }
