@@ -164,6 +164,7 @@ const routes = [
         { farmScoped: true },
       ),
       page("/operations/eggs", "ops-eggs", "จัดการผลผลิตไข่", [SA, FA, FS], {
+        component: () => import("@/views/eggs/EggProductionView.vue"),
         farmScoped: true,
       }), 
       page(

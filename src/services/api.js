@@ -19,7 +19,7 @@ api.interceptors.request.use((config) => {
   }
   const auth = useAuthStore();
   if (auth.isInspecting && (!config.method || config.method.toLowerCase() === 'get')
-      && /(?:admin\/users|v1\/houses|v1\/flocks)(?:[/?]|$)/.test(config.url || '')) {
+      && /(?:admin\/users|v1\/houses|v1\/flocks|v1\/egg-production)(?:[/?]|$)/.test(config.url || '')) {
     config.params = { ...config.params, farmId: auth.effectiveFarmId };
   }
   const token =
@@ -125,4 +125,11 @@ export const flockApi = {
   update: (id, payload) => api.put(`api/v1/flocks/${id}`, payload),
   remove: (id) => api.delete(`api/v1/flocks/${id}`),
   create: (payload) => api.post("api/v1/flocks", payload),
+};
+
+export const eggProductionApi = {
+  list: (params) => api.get('api/v1/egg-production', { params }),
+  create: (payload) => api.post('api/v1/egg-production', payload),
+  update: (id, payload) => api.put(`api/v1/egg-production/${id}`, payload),
+  remove: (id) => api.delete(`api/v1/egg-production/${id}`),
 };
