@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-vue-next';
-import { houseApi } from '@/services/api';
+import { flockApi, houseApi } from '@/services/api';
 import { useModalStore } from '@/stores/modalStore';
 import { useRoleAccess } from '@/composables/useRoleAccess';
 import BaseButton from '@/components/form/BaseButton.vue';
@@ -18,6 +18,9 @@ const houses = ref([]);
 const loading = ref(true);
 const loadError = ref('');
 const selectedId = ref(null);
+const flocks = ref([]);
+const flocksLoading = ref(true);
+const flockError = ref('');
 
 const editing = ref(false);
 const saving = ref(false);
@@ -28,6 +31,36 @@ const showDelete = ref(false);
 const deleting = ref(false);
 
 const selected = computed(() => houses.value.find((h) => h.houseId === selectedId.value) ?? null);
+const flocksByHouse = computed(() => {
+  const grouped = new Map();
+  for (const flock of flocks.value) {
+    if (!grouped.has(flock.houseId)) grouped.set(flock.houseId, []);
+    grouped.get(flock.houseId).push(flock);
+  }
+  for (const rows of grouped.values()) {
+    rows.sort((a, b) => b.receivedDate.localeCompare(a.receivedDate));
+  }
+  return grouped;
+});
+const currentFlocks = computed(() => new Map(
+  [...flocksByHouse.value].map(([id, rows]) => [id, rows.find((flock) => flock.status !== 'RETIRED')]),
+));
+const history = computed(() => flocksByHouse.value.get(selectedId.value) ?? []);
+const currentFlock = computed(() => currentFlocks.value.get(selectedId.value));
+const percent = (value) => value == null ? '—' : `${Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })}%`;
+
+async function loadFlocks() {
+  flocksLoading.value = true;
+  flockError.value = '';
+  try {
+    const { data } = await flockApi.list();
+    flocks.value = data;
+  } catch (e) {
+    flockError.value = apiMessage(e, 'ไม่สามารถโหลดข้อมูลฝูงไก่ได้');
+  } finally {
+    flocksLoading.value = false;
+  }
+}
 
 async function load(keepId = selectedId.value) {
   loading.value = true;
@@ -42,7 +75,10 @@ async function load(keepId = selectedId.value) {
     loading.value = false;
   }
 }
-onMounted(() => load());
+onMounted(() => {
+  load();
+  loadFlocks();
+});
 
 const goAdd = () => router.push({ name: 'farm-houses-new' });
 
@@ -92,6 +128,9 @@ const specs = computed(() => {
   const h = selected.value;
   if (!h) return [];
   return [
+    ['ฝูงปัจจุบัน', currentFlock.value
+      ? `${currentFlock.value.flockCode} (${currentFlock.value.breedName})`
+      : (flocksLoading.value || flockError.value ? '—' : 'ไม่มีฝูง')],
     ['ขนาด', `${h.widthM} × ${h.lengthM} ม. (${fmtNum(h.areaSqm)} ตร.ม.)`],
     ['ความจุ', `${fmtNum(h.capacity)} ตัว`],
     ['สร้างหรือปรับปรุงล่าสุด', fmtDate(h.lastBuiltOrRenovatedDate)],
@@ -131,7 +170,15 @@ const badge = (s) => (s === 'ACTIVE' ? 'bg-[#dcefd8] text-[#2f6b2a]' : 'bg-[#dbe
               <strong class="truncate text-xs text-[#202b21]">{{ h.houseName }}</strong>
               <span class="rounded-full px-2 py-0.5 text-[10px]" :class="badge(h.status)">{{ STATUS_LABEL[h.status] ?? h.status }}</span>
             </span>
-            <span class="mt-2 block text-[11px] text-[#7d8378]">ความจุ <strong class="text-[#202b21]">{{ fmtNum(h.capacity) }}</strong> ตัว</span>
+            <span v-if="!flocksLoading && !flockError" class="mt-2 block text-[11px] text-[#7d8378]">
+              {{ currentFlocks.get(h.houseId) ? `ฝูง ${currentFlocks.get(h.houseId).flockCode}` : 'ไม่มีฝูง' }}
+            </span>
+            <span class="mt-1 block text-[11px] text-[#7d8378]">
+              <template v-if="!flocksLoading && !flockError">
+                <strong class="text-[#202b21]">{{ fmtNum(currentFlocks.get(h.houseId)?.currentCount ?? 0) }}</strong> /
+              </template>
+              <template v-else>ความจุ </template>{{ fmtNum(h.capacity) }} ตัว
+            </span>
           </button>
         </li>
       </ul>
@@ -169,13 +216,43 @@ const badge = (s) => (s === 'ACTIVE' ? 'bg-[#dcefd8] text-[#2f6b2a]' : 'bg-[#dbe
           <HouseFormFields v-model="form" :errors="errors" id-prefix="edit" show-status />
         </form>
 
-        <div v-else class="mt-4 rounded-2xl border border-[#efe6d2] bg-white p-6">
-          <h3 class="text-sm font-bold">ข้อมูลจำเพาะ</h3>
-          <dl class="mt-4 space-y-2 text-xs">
-            <div v-for="[k, v] in specs" :key="k" class="flex justify-between gap-4">
-              <dt class="text-[#7d8378]">{{ k }}</dt><dd class="text-right font-medium">{{ v }}</dd>
+        <div v-else class="mt-4 grid items-start gap-4 lg:grid-cols-2">
+          <div class="rounded-2xl border border-[#efe6d2] bg-white p-6">
+            <h3 class="text-sm font-bold">ข้อมูลจำเพาะ</h3>
+            <dl class="mt-4 space-y-2 text-xs">
+              <div v-for="[k, v] in specs" :key="k" class="flex justify-between gap-4">
+                <dt class="text-[#7d8378]">{{ k }}</dt><dd class="text-right font-medium">{{ v }}</dd>
+              </div>
+            </dl>
+          </div>
+          <div class="min-w-0 rounded-2xl border border-[#efe6d2] bg-white p-6">
+            <h3 class="text-sm font-bold">ประวัติการเลี้ยงในเล้านี้</h3>
+            <p v-if="flocksLoading" class="mt-4 text-xs text-[#7d8378]">กำลังโหลดข้อมูลฝูงไก่…</p>
+            <p v-else-if="flockError" class="mt-4 text-xs text-red-700" role="alert">
+              {{ flockError }} <button type="button" class="underline" @click="loadFlocks">ลองอีกครั้ง</button>
+            </p>
+            <p v-else-if="!history.length" class="mt-4 text-xs text-[#7d8378]">ยังไม่มีประวัติการเลี้ยง</p>
+            <div v-else class="mt-4 overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="text-[#7d8378]">
+                  <tr>
+                    <th scope="col" class="pb-2 pr-3 font-medium">ฝูง</th>
+                    <th scope="col" class="pb-2 pr-3 font-medium">ช่วงเวลา</th>
+                    <th scope="col" class="pb-2 pr-3 font-medium">ตายสะสม</th>
+                    <th scope="col" class="pb-2 font-medium">Hen-day ล่าสุด</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="flock in history" :key="flock.flockId" class="border-t border-[#efe6d2]">
+                    <th scope="row" class="py-2.5 pr-3">{{ flock.flockCode }}</th>
+                    <td class="py-2.5 pr-3">{{ fmtDate(flock.receivedDate) }} – {{ flock.status === 'RETIRED' ? '—' : 'ปัจจุบัน' }}</td>
+                    <td class="py-2.5 pr-3">{{ percent(flock.mortalityPercent) }}</td>
+                    <td class="py-2.5">{{ percent(flock.henDayPercent) }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-          </dl>
+          </div>
         </div>
       </section>
     </template>
