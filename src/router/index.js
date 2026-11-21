@@ -154,6 +154,7 @@ const routes = [
       }), 
 
       page("/operations/feed", "ops-feed", "จัดการอาหาร", [SA, FA, FS], {
+        component: () => import("@/views/feeds/FeedLoggingView.vue"),
         farmScoped: true,
       }), 
       page(

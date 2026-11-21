@@ -145,3 +145,7 @@ export const healthCaseApi = {
   detail: (id) => api.get(`api/health-cases/${id}`),
   addHistory: (id, payload) => api.post(`api/health-cases/${id}/history`, payload),
 };
+
+export const feedLogApi = {
+  create: (payload) => api.post("api/feed-logs", payload),
+};
