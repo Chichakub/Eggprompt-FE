@@ -1,6 +1,8 @@
 import { isValidFormDate } from './dateValidation.js';
 
-export const STATUS_LABEL = { ACTIVE: 'เลี้ยงอยู่', INACTIVE: 'พักเล้า' };
+export const todayInBangkok = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
+
+export const STATUS_LABEL = { ACTIVE: 'เปิดใช้งาน', INACTIVE: 'พักเล้า' };
 
 export const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
@@ -51,12 +53,16 @@ export function validateHouse(f) {
   const l = dim(f.lengthM, 'ความยาว'); if (l) e.lengthM = l;
 
   if (f.capacity.trim() === '') e.capacity = 'กรุณาระบุความจุ';
-  else if (!/^\d+$/.test(f.capacity.trim()) || Number(f.capacity) < 1 || Number(f.capacity) > 2147483647) {
-    e.capacity = 'ความจุต้องเป็นจำนวนเต็มตั้งแต่ 1 ถึง 2,147,483,647';
+  else if (!/^\d+$/.test(f.capacity.trim()) || Number(f.capacity) < 1) {
+    e.capacity = 'กรุณากรอกความจุเป็นจำนวนเต็มมากกว่า 0 เช่น 12000';
+  } else if (Number(f.capacity) > 2147483647) {
+    e.capacity = 'ตัวเลขความจุสูงเกินกว่าที่ระบบรองรับ กรุณาตรวจสอบอีกครั้ง';
   }
 
   if (f.lastBuiltOrRenovatedDate && !isValidFormDate(f.lastBuiltOrRenovatedDate)) {
     e.lastBuiltOrRenovatedDate = 'กรุณาระบุวันที่ให้ถูกต้อง โดยใช้ปี ค.ศ. 4 หลัก เช่น 2026';
+  } else if (f.lastBuiltOrRenovatedDate > todayInBangkok()) {
+    e.lastBuiltOrRenovatedDate = 'วันที่สร้างหรือปรับปรุงล่าสุดต้องไม่เกินวันนี้';
   }
   return e;
 }
