@@ -7,6 +7,7 @@ defineProps({
   autocomplete: { type: String, default: 'off' },
   required: { type: Boolean, default: false },
   maxlength: { type: Number, default: undefined },
+  max: { type: String, default: undefined },
   error: { type: String, default: '' },
 });
 
@@ -38,6 +39,7 @@ const model = defineModel({ type: String, default: '' });
         :autocomplete="autocomplete"
         :required="required"
         :maxlength="maxlength"
+        :max="max"
         :aria-invalid="!!error"
         :aria-describedby="error ? `${id}-error` : undefined"
         class="min-h-10 w-full rounded-[9px] border bg-[#fffdfa] py-2 text-xs outline-none placeholder:text-[#929789] focus:ring-2 focus:ring-[#8b9a74]/20"
