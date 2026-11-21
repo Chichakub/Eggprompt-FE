@@ -153,7 +153,7 @@ function houseBadge(house) {
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1280px]">
+  <div class="mx-auto max-w-7xl">
     <header class="flex items-start justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-[#202b21]">ข้อมูลโรงเรือน</h1>
@@ -174,7 +174,7 @@ function houseBadge(house) {
 
     <template v-else>
       <ul class="mt-5 flex gap-3 overflow-x-auto pb-1" role="listbox" aria-label="เลือกโรงเรือน">
-        <li v-for="h in houses" :key="h.houseId" class="min-w-[200px] flex-1">
+        <li v-for="h in houses" :key="h.houseId" class="min-w-50 flex-1">
           <button type="button" role="option" :aria-selected="h.houseId === selectedId" :disabled="editing && h.houseId !== selectedId"
             class="w-full rounded-xl border-2 p-3 text-left transition disabled:opacity-60"
             :class="h.houseId === selectedId ? 'border-[#e08a2c] bg-white' : 'border-transparent bg-[#efe7d6] hover:bg-[#eadfca]'"
