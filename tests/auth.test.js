@@ -277,3 +277,20 @@ test('farm and flock loaders do not request protected data after logout', async 
     assert.equal(loading.value, false);
   }
 });
+
+test('temporary password sessions survive refresh and redirect before loading protected data', async () => {
+  const { auth, authApi, guard } = setup();
+  auth.setLoginSession({
+    token: 'temporary-jwt',
+    user: { user_role: roles.FARM_ADMIN, mustChangePassword: true },
+  }, false);
+  auth.token = null;
+
+  let protectedRequests = 0;
+  authApi.me = async () => { protectedRequests++; };
+  authApi.setupStatus = async () => { protectedRequests++; };
+
+  assert.deepEqual(await guard(protectedPage), { name: 'first-login-password', replace: true });
+  assert.equal(await guard({ name: 'first-login-password', meta: {} }), true);
+  assert.equal(protectedRequests, 0);
+});

@@ -79,6 +79,18 @@ const roles = computed(() => props.allowFarmAdmin
       @update:model-value="emit('clear-error', 'username')"
     />
 
+    <BaseInput
+      :id="`${id}-email`"
+      v-model="account.email"
+      type="email"
+      label="อีเมลผู้ใช้ (Email)"
+      placeholder="เช่น owner@example.com"
+      :maxlength="255"
+      :error="errors.email"
+      :required="account.role === FARM_ADMIN"
+      @update:model-value="emit('clear-error', 'email')"
+    />
+
     <PasswordField
       :id="`${id}-password`"
       v-model="account.temporaryPassword"
