@@ -173,6 +173,7 @@ const routes = [
       }), 
 
       page("/operations/feed", "ops-feed", "จัดการอาหาร", [SA, FA, FS], {
+        component: () => import("@/views/feeds/FeedLoggingView.vue"),
         farmScoped: true,
       }), 
       page(
@@ -180,7 +181,10 @@ const routes = [
         "ops-health",
         "ข้อมูลสุขภาพไก่",
         [SA, FA, FS],
-        { farmScoped: true },
+        {
+          component: () => import("@/views/health/HealthLogView.vue"),
+          farmScoped: true,
+        },
       ),
       page("/operations/eggs", "ops-eggs", "จัดการผลผลิตไข่", [SA, FA, FS], {
         component: () => import("@/views/eggs/EggProductionView.vue"),

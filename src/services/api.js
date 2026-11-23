@@ -138,3 +138,19 @@ export const eggProductionApi = {
   update: (id, payload) => api.put(`api/v1/egg-production/${id}`, payload),
   remove: (id) => api.delete(`api/v1/egg-production/${id}`),
 };
+
+export const healthLogApi = {
+  create: (payload) => api.post('api/health-logs', payload),
+  lossHistory: () => api.get('api/health-logs/loss-history'),
+};
+
+export const healthCaseApi = {
+  list: () => api.get('api/health-cases'),
+  create: (payload) => api.post('api/health-cases', payload),
+  detail: (id) => api.get(`api/health-cases/${id}`),
+  addHistory: (id, payload) => api.post(`api/health-cases/${id}/history`, payload),
+};
+
+export const feedLogApi = {
+  create: (payload) => api.post("api/feed-logs", payload),
+};

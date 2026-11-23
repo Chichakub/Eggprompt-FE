@@ -5,10 +5,11 @@ import BaseButton from "@/components/form/BaseButton.vue";
 
 defineProps({
   title: { type: String, required: true },
-  message: { type: String, required: true },
+  message: { type: String, default: "" },
   cancelText: { type: String, default: "ยกเลิก" },
   confirmText: { type: String, default: "ตกลง" },
   loading: { type: Boolean, default: false },
+  loadingText: { type: String, default: "กำลังออก..." },
 });
 
 const emit = defineEmits(["cancel", "confirm"]);
@@ -29,20 +30,38 @@ onMounted(() => dialog.value?.showModal());
         class="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#efd39c] bg-[#fff0cf] text-[#a76a00]"
         aria-hidden="true"
       >
-        <Pause :size="25" :stroke-width="3" />
+        <slot name="icon">
+          <Pause :size="25" :stroke-width="3" />
+        </slot>
       </div>
 
-      <h2 id="confirm-modal-title" class="mt-3 text-base font-bold text-[#202b21]">
+      <h2
+        id="confirm-modal-title"
+        class="mt-3 text-base font-bold text-[#202b21]"
+      >
         {{ title }}
       </h2>
-      <p id="confirm-modal-description" class="mt-3 whitespace-pre-line text-xs leading-relaxed text-[#7d8378]">
-        {{ message }}
-      </p>
+      <div id="confirm-modal-description" class="mt-3">
+        <slot>
+          <p class="whitespace-pre-line text-xs leading-relaxed text-[#7d8378]">
+            {{ message }}
+          </p>
+        </slot>
+      </div>
       <div class="mt-5 flex justify-center gap-3">
-        <BaseButton autofocus variant="secondary" :disabled="loading" @click="emit('cancel')">
+        <BaseButton
+          autofocus
+          variant="secondary"
+          :disabled="loading"
+          @click="emit('cancel')"
+        >
           {{ cancelText }}
         </BaseButton>
-        <BaseButton :loading="loading" loading-text="กำลังออก..." @click="emit('confirm')">
+        <BaseButton
+          :loading="loading"
+          :loading-text="loadingText"
+          @click="emit('confirm')"
+        >
           {{ confirmText }}
         </BaseButton>
       </div>

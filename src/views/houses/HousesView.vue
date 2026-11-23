@@ -47,6 +47,10 @@ const currentFlocks = computed(() => new Map(
 ));
 const history = computed(() => flocksByHouse.value.get(selectedId.value) ?? []);
 const currentFlock = computed(() => currentFlocks.value.get(selectedId.value));
+const flocksReady = computed(() => !flocksLoading.value && !flockError.value);
+const houseBadges = computed(() => new Map(
+  houses.value.map((house) => [house.houseId, houseBadge(house)]),
+));
 const percent = (value) => value == null ? '—' : `${Number(value).toLocaleString('th-TH', { maximumFractionDigits: 2 })}%`;
 
 async function loadFlocks() {
@@ -130,17 +134,26 @@ const specs = computed(() => {
   return [
     ['ฝูงปัจจุบัน', currentFlock.value
       ? `${currentFlock.value.flockCode} (${currentFlock.value.breedName})`
-      : (flocksLoading.value || flockError.value ? '—' : 'ไม่มีฝูง')],
+      : (flocksReady.value ? 'ไม่มีฝูง' : '—')],
     ['ขนาด', `${h.widthM} × ${h.lengthM} ม. (${fmtNum(h.areaSqm)} ตร.ม.)`],
     ['ความจุ', `${fmtNum(h.capacity)} ตัว`],
     ['สร้างหรือปรับปรุงล่าสุด', fmtDate(h.lastBuiltOrRenovatedDate)],
   ];
 });
-const badge = (s) => (s === 'ACTIVE' ? 'bg-[#dcefd8] text-[#2f6b2a]' : 'bg-[#dbeaf7] text-[#2c5f8a]');
+function houseBadge(house) {
+  if (house.status === 'INACTIVE') {
+    return { label: STATUS_LABEL.INACTIVE, color: 'bg-[#dbeaf7] text-[#2c5f8a]' };
+  }
+  if (!flocksReady.value || house.status !== 'ACTIVE') return null;
+  if (currentFlocks.value.get(house.houseId)) {
+    return { label: 'เลี้ยงอยู่', color: 'bg-[#dcefd8] text-[#2f6b2a]' };
+  }
+  return { label: 'ว่าง', color: 'bg-[#eee6d8] text-[#67543c]' };
+}
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1280px]">
+  <div class="mx-auto max-w-7xl">
     <header class="flex items-start justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-[#202b21]">ข้อมูลโรงเรือน</h1>
@@ -161,20 +174,22 @@ const badge = (s) => (s === 'ACTIVE' ? 'bg-[#dcefd8] text-[#2f6b2a]' : 'bg-[#dbe
 
     <template v-else>
       <ul class="mt-5 flex gap-3 overflow-x-auto pb-1" role="listbox" aria-label="เลือกโรงเรือน">
-        <li v-for="h in houses" :key="h.houseId" class="min-w-[200px] flex-1">
+        <li v-for="h in houses" :key="h.houseId" class="min-w-50 flex-1">
           <button type="button" role="option" :aria-selected="h.houseId === selectedId" :disabled="editing && h.houseId !== selectedId"
             class="w-full rounded-xl border-2 p-3 text-left transition disabled:opacity-60"
             :class="h.houseId === selectedId ? 'border-[#e08a2c] bg-white' : 'border-transparent bg-[#efe7d6] hover:bg-[#eadfca]'"
             @click="selectedId = h.houseId">
             <span class="flex items-center justify-between gap-2">
               <strong class="truncate text-xs text-[#202b21]">{{ h.houseName }}</strong>
-              <span class="rounded-full px-2 py-0.5 text-[10px]" :class="badge(h.status)">{{ STATUS_LABEL[h.status] ?? h.status }}</span>
+              <span v-if="houseBadges.get(h.houseId)" class="rounded-full px-2 py-0.5 text-[10px]" :class="houseBadges.get(h.houseId).color">
+                {{ houseBadges.get(h.houseId).label }}
+              </span>
             </span>
-            <span v-if="!flocksLoading && !flockError" class="mt-2 block text-[11px] text-[#7d8378]">
+            <span v-if="flocksReady" class="mt-2 block text-[11px] text-[#7d8378]">
               {{ currentFlocks.get(h.houseId) ? `ฝูง ${currentFlocks.get(h.houseId).flockCode}` : 'ไม่มีฝูง' }}
             </span>
             <span class="mt-1 block text-[11px] text-[#7d8378]">
-              <template v-if="!flocksLoading && !flockError">
+              <template v-if="flocksReady">
                 <strong class="text-[#202b21]">{{ fmtNum(currentFlocks.get(h.houseId)?.currentCount ?? 0) }}</strong> /
               </template>
               <template v-else>ความจุ </template>{{ fmtNum(h.capacity) }} ตัว
@@ -187,7 +202,9 @@ const badge = (s) => (s === 'ACTIVE' ? 'bg-[#dcefd8] text-[#2f6b2a]' : 'bg-[#dbe
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-3">
             <h2 class="text-xl font-bold text-[#202b21]">{{ selected.houseName }}</h2>
-            <span class="rounded-full px-2 py-0.5 text-[10px]" :class="badge(selected.status)">{{ STATUS_LABEL[selected.status] ?? selected.status }}</span>
+            <span v-if="houseBadges.get(selectedId)" class="rounded-full px-2 py-0.5 text-[10px]" :class="houseBadges.get(selectedId).color">
+              {{ houseBadges.get(selectedId).label }}
+            </span>
           </div>
 
           <div v-if="canManageHouse" class="flex gap-2">

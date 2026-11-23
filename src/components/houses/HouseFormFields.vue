@@ -1,6 +1,7 @@
 <script setup>
+import { ref } from 'vue';
 import BaseInput from '../form/BaseInput.vue';
-import { STATUS_LABEL } from '@/composables/houseUtils';
+import { STATUS_LABEL, todayInBangkok } from '@/composables/houseUtils';
 
 defineProps({
   idPrefix: { type: String, required: true },
@@ -8,6 +9,7 @@ defineProps({
   showStatus: { type: Boolean, default: false },
 });
 const form = defineModel({ type: Object, required: true });
+const maxDate = ref(todayInBangkok());
 </script>
 
 <template>
@@ -25,6 +27,14 @@ const form = defineModel({ type: Object, required: true });
     <BaseInput :id="`${idPrefix}-l`" v-model="form.lengthM" label="ยาว (ม.)" placeholder="เช่น 120" required :error="errors.lengthM" />
     <BaseInput :id="`${idPrefix}-cap`" v-model="form.capacity" label="ความจุ (ตัว)" placeholder="เช่น 2000" required :error="errors.capacity" />
 
-    <BaseInput :id="`${idPrefix}-built`" v-model="form.lastBuiltOrRenovatedDate" type="date" label="สร้างหรือปรับปรุงล่าสุด" :error="errors.lastBuiltOrRenovatedDate" />
+    <BaseInput
+      :id="`${idPrefix}-built`"
+      v-model="form.lastBuiltOrRenovatedDate"
+      type="date"
+      label="สร้างหรือปรับปรุงล่าสุด"
+      :max="maxDate"
+      :error="errors.lastBuiltOrRenovatedDate"
+      @focusin="maxDate = todayInBangkok()"
+    />
   </div>
 </template>
