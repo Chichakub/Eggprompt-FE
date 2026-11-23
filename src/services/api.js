@@ -12,6 +12,8 @@ api.interceptors.request.use((config) => {
     "/auth/register",
     "/auth/forgot-password",
     "/auth/reset-password",
+    "/auth/verify-email",
+    "/auth/resend-verification",
   ];
 
   if (publicAuthPaths.some((path) => config.url?.endsWith(path))) {
@@ -69,6 +71,8 @@ export const authApi = {
     api.post("api/v1/auth/register", payload, {
       timeout: 15000,
     }),
+  verifyEmail: (payload) => api.post("api/v1/auth/verify-email", payload, { timeout: 15000 }),
+  resendVerification: (payload) => api.post("api/v1/auth/resend-verification", payload, { timeout: 15000 }),
   me: () => api.get("api/v1/auth/me"),
   logout: () => api.post("api/v1/auth/logout"),
 
@@ -94,6 +98,7 @@ export const authApi = {
   }),
 };
 export const userManagementApi = {
+  reissueTemporaryPassword: (id) => api.post(`api/v1/admin/users/${id}/temporary-password`),
   list: (params) => api.get('api/v1/admin/users', { params }),
   create: (payload) => api.post('api/v1/admin/users', payload),
   update: (id, payload) => api.put(`api/v1/admin/users/${id}`, payload),

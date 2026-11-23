@@ -5,9 +5,14 @@ import BaseButton from "@/components/form/BaseButton.vue";
 import PasswordField from "@/components/form/PasswordField.vue";
 import { authApi } from "@/services/api";
 import { useModalStore } from "@/stores/modalStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useRouter } from "vue-router";
 import PasswordRequirements from "@/components/form/PasswordRequirements.vue";
 
+const props = defineProps({ firstLogin: Boolean });
 const emit = defineEmits(["close"]);
+const auth = useAuthStore();
+const router = useRouter();
 const modalStore = useModalStore();
 
 const dialog = ref(null);
@@ -49,10 +54,22 @@ onMounted(() => {
   dialog.value?.showModal();
 });
 
-function close() {
+async function close() {
   if (loading.value) return;
 
+  if (props.firstLogin) {
+    loading.value = true;
+    await auth.logout();
+    await router.replace({ name: "login" });
+    return;
+  }
+
   emit("close");
+}
+
+function cancel(event) {
+  event.preventDefault();
+  if (!props.firstLogin) close();
 }
 
 function clearError(field) {
@@ -119,13 +136,19 @@ async function submit() {
     loading.value = false;
   }
 
-  // ทำงานเฉพาะเมื่อ API เปลี่ยนรหัสผ่านสำเร็จ
-  emit("close");
+  if (props.firstLogin) {
+    auth.clearLoginSession();
+    await router.replace({ name: "login" });
+  } else {
+    emit("close");
+  }
   await nextTick();
 
   modalStore.openSuccess({
     title: "เปลี่ยนรหัสสำเร็จ",
-    message: "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว",
+    message: props.firstLogin
+      ? "เข้าสู่ระบบอีกครั้งด้วยรหัสผ่านใหม่"
+      : "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว",
     confirmText: "ตกลง",
   });
 }
@@ -137,14 +160,14 @@ async function submit() {
       ref="dialog"
       aria-labelledby="change-password-title"
       class="fixed inset-0 m-auto max-h-[calc(100dvh_-_32px)] w-[calc(100%_-_32px)] max-w-[400px] overflow-y-auto rounded-[18px] border border-[#e9dfd0] bg-white px-5 pb-8 pt-6 text-[#243319] backdrop:bg-[#f7f2e7]/60"
-      @cancel.prevent="close"
+      @cancel="cancel"
     >
       <h2
         id="change-password-title"
         class="mb-6 flex items-center gap-2 text-sm font-bold"
       >
         <KeyRound :size="16" aria-hidden="true" />
-        เปลี่ยนรหัสผ่าน
+        {{ firstLogin ? "ตั้งรหัสผ่านก่อนเข้าใช้งาน" : "เปลี่ยนรหัสผ่าน" }}
       </h2>
 
       <form novalidate :aria-busy="loading" @submit.prevent="submit">
@@ -155,7 +178,7 @@ async function submit() {
           <PasswordField
             id="change-current-password"
             v-model="form.currentPassword"
-            label="รหัสผ่านเดิม (Current Password)"
+            :label='firstLogin ? "รหัสผ่านชั่วคราว" : "รหัสผ่านเดิม (Current Password)"'
             placeholder="ระบุรหัสผ่านเดิม"
             autocomplete="current-password"
             required
@@ -202,7 +225,7 @@ async function submit() {
               <X :size="14" aria-hidden="true" />
             </template>
 
-            ยกเลิก
+            {{ firstLogin ? "ออกจากระบบ" : "ยกเลิก" }}
           </BaseButton>
 
           <BaseButton

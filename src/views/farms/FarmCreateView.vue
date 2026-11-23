@@ -107,7 +107,7 @@ async function pauseSetup() {
 }
 
 function isEmptyAccount(details) {
-  return !details.role && !details.username.trim() && !details.temporaryPassword;
+  return !details.role && !details.username.trim() && !details.email.trim() && !details.temporaryPassword;
 }
 
 function clearError() {
@@ -121,6 +121,7 @@ function addAccount() {
     details: {
       role: "",
       username: "",
+      email: "",
       temporaryPassword: "",
     },
   });
@@ -161,18 +162,22 @@ async function submit(event) {
   }
 
   const usernames = new Set();
+  const emails = new Set();
   for (const { details, errors } of accounts.value) {
     if (auth.isFarmAdmin && isEmptyAccount(details)) {
       errors.role = "";
       errors.username = "";
+      errors.email = "";
       errors.temporaryPassword = "";
       continue;
     }
     const username = details.username.trim();
+    const email = details.email.trim().toLowerCase();
     const password = details.temporaryPassword;
 
     errors.role = details.role ? "" : "กรุณาเลือกสิทธิ์ผู้ใช้";
     errors.username = "";
+    errors.email = "";
     errors.temporaryPassword = "";
 
     if (!username) {
@@ -187,6 +192,18 @@ async function submit(event) {
         errors.username = "ชื่อผู้ใช้นี้ซ้ำกับบัญชีในฟอร์ม";
       }
       usernames.add(username);
+    }
+
+    if (!email && details.role === FARM_ADMIN) {
+      errors.email = "กรุณากรอกอีเมลสำหรับบัญชี Farm Admin";
+    } else if (email) {
+      if (email.length > 255 || !/^[^\s@]+@[^\s@]+$/.test(email)) {
+        errors.email = "กรุณากรอกอีเมลให้ถูกต้อง";
+      } else if (emails.has(email)) {
+        errors.email = "อีเมลนี้ซ้ำกับบัญชีในฟอร์ม";
+      } else {
+        emails.add(email);
+      }
     }
 
     if (!password) {
@@ -227,6 +244,7 @@ async function submit(event) {
       .map(({ details }) => ({
       role: details.role,
       username: details.username.trim(),
+      email: details.email.trim().toLowerCase() || null,
       temporaryPassword: details.temporaryPassword,
     })),
   };

@@ -13,6 +13,7 @@ const auth = useAuthStore();
 const form = reactive({ username: '', password: '', remember: false });
 const showPassword = ref(false);
 const errorMessage = ref('');
+const verificationRequired = ref(false);
 const isSubmitting = ref(false);
 
 const ERROR_BY_STATUS = {
@@ -24,6 +25,7 @@ const ERROR_BY_STATUS = {
 async function submit() {
     if (isSubmitting.value) return;
     errorMessage.value = '';
+    verificationRequired.value = false;
 
     if (!form.username.trim()) {
         errorMessage.value = 'กรุณากรอกชื่อผู้ใช้';
@@ -51,16 +53,27 @@ async function submit() {
                     username: data.user.username,
                     user_role: data.user.role,
                     farm_id: data.user.farmId,
+                    mustChangePassword: data.user.mustChangePassword,
                 },
             },
             form.remember
         );
+
+        if (auth.mustChangePassword) {
+            await router.replace({ name: 'first-login-password' });
+            return;
+        }
 
        const targetPath = auth.isFarmSetupRequired
     ? '/farm/info'
     : route.query.redirect || defaultPathFor(data.user.role);
     router.push(targetPath);
     } catch (err) {
+        if (err.response?.status === 403 && err.response.data?.message === 'EMAIL_VERIFICATION_REQUIRED') {
+            verificationRequired.value = true;
+            errorMessage.value = 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ';
+            return;
+        }
         errorMessage.value = err.response
             ? (ERROR_BY_STATUS[err.response.status] ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
             : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
@@ -131,6 +144,10 @@ async function submit() {
             <p v-if="errorMessage" role="alert" class="text-[10px] text-red-700">
                 {{ errorMessage }}
             </p>
+            <RouterLink v-if="verificationRequired" :to="{ name: 'verify-email' }"
+                class="block text-xs font-semibold underline">
+                ส่งอีเมลยืนยันอีกครั้ง
+            </RouterLink>
 
             <button type="submit" :disabled="isSubmitting" :aria-busy="isSubmitting"
                 class="flex min-h-9 w-full items-center justify-center gap-2 rounded-[9px] bg-[#f6d390] px-2 py-2 text-[10px] font-semibold text-[#23311e] transition hover:bg-[#efc36c] disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-[#a76a00]">

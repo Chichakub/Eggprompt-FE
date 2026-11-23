@@ -29,6 +29,25 @@ const page = (path, name, title, roles, opts = {}) => ({
 
 const routes = [
   {
+    path: '/first-login-password',
+    name: 'first-login-password',
+    component: () => import('@/components/modals/ChangePasswordModal.vue'),
+    props: { firstLogin: true },
+    meta: { title: 'ตั้งรหัสผ่านครั้งแรก' },
+  },
+  {
+    path: '/verify-email',
+    component: () => import('@/layouts/PasswordRecoveryLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'verify-email',
+        component: () => import('@/views/auth/VerifyEmailView.vue'),
+        meta: { public: true, title: 'ยืนยันอีเมล' },
+      },
+    ],
+  },
+  {
     path: '/reset-password',
     component: () => import('@/layouts/PasswordRecoveryLayout.vue'),
     meta: { public: true },
@@ -220,9 +239,19 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
 
+  if (to.name === 'verify-email') return true;
+
   if (!auth.token) {
     auth.restoreSession();
   }
+
+  if (auth.token && auth.mustChangePassword) {
+    return to.name === 'first-login-password'
+      ? true
+      : { name: 'first-login-password', replace: true };
+  }
+
+  if (to.name === 'first-login-password') return { name: 'home', replace: true };
 
   if (auth.token && !auth.profileLoaded) {
     try {

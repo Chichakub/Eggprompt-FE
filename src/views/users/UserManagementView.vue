@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { Check, ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Plus, Search, Trash2, UserPlus, X } from 'lucide-vue-next';
+import { Check, ChevronLeft, ChevronRight, Eye, EyeOff, Pencil, Plus, Search, Trash2, UserPlus, X, KeyRound } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/authStore';
 import { userManagementApi as api } from '@/services/api';
 import PasswordRequirements from '@/components/form/PasswordRequirements.vue';
@@ -15,9 +15,12 @@ const loading = ref(false), busy = ref(false), error = ref(''), formError = ref(
 const creating = ref(false), editing = ref(null), deleting = ref(null), success = ref('');
 const editDialog = ref(null), deleteDialog = ref(null), successDialog = ref(null);
 const showPassword = ref(false);
-const form = reactive({ username: '', password: '', role: '', farmId: '', active: true });
+const form = reactive({ username: '', password: '', email: '', role: '', farmId: '', active: true });
 const rules = computed(() => [form.password.length >= 8, /[A-Z]/.test(form.password) && /[a-z]/.test(form.password), /\d/.test(form.password), /[^A-Za-z0-9\s]/.test(form.password)]);
-const canCreate = computed(() => /^[A-Za-z0-9._-]{4,24}$/.test(form.username) && form.role && rules.value.every(Boolean) && (form.role === 'Super Admin' || !auth.isSuperAdmin || form.farmId.trim()));
+const requiresEmail=computed(()=>form.role==='Farm Admin');
+const canReissue=u=>auth.isFarmAdmin&&u.active&&!u.email?.trim()&&u.farmId===auth.effectiveFarmId&&['Farm Staff','Finance Staff'].includes(u.role);
+const resetDialog=ref(null),resetTarget=ref(null),issuedPassword=ref(''),resetError=ref('');
+const canCreate = computed(() => (!requiresEmail.value||!!form.email.trim()) && /^[A-Za-z0-9._-]{4,24}$/.test(form.username) && form.role && rules.value.every(Boolean) && (form.role === 'Super Admin' || !auth.isSuperAdmin || form.farmId.trim()));
 const cards = computed(() => [{ key: '', label: 'ผู้ใช้ทั้งหมด', count: counts.value.all || 0 }, ...roles.slice(1).map(r => ({ key: r, label: r, count: counts.value[r] || 0 }))]);
 let sequence = 0, debounce;
 const message = e => e.response?.data?.message || 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่อีกครั้ง';
@@ -29,6 +32,7 @@ function date(value, time = false) {
 }
 async function load() {
   const id = ++sequence;
+  if(!auth.isAuthenticated){rows.value=[];loading.value=false;return;}
   loading.value = true; error.value = '';
   try {
     const { data } = await api.list({ search: search.value.trim(), role: role.value, page: page.value, size: size.value });
@@ -43,10 +47,10 @@ watch([role, size], () => { clearTimeout(debounce); page.value === 0 ? load() : 
 watch(page, load);
 watch(() => auth.effectiveFarmId, () => { page.value === 0 ? load() : page.value = 0; });
 onMounted(load);
-onBeforeUnmount(() => { clearTimeout(debounce); sequence++; });
+onBeforeUnmount(() => { issuedPassword.value='';clearTimeout(debounce); sequence++; });
 function startCreate() {
   formError.value = ''; showPassword.value = false;
-  Object.assign(form, { username: '', password: '', role: '', farmId: auth.effectiveFarmId || '', active: true });
+  Object.assign(form, { username: '', password: '', email: '', role: '', farmId: auth.effectiveFarmId || '', active: true });
   creating.value = true;
 }
 async function startEdit(user) {
@@ -61,11 +65,11 @@ async function save() {
   busy.value = true; formError.value = '';
   const isNew = creating.value;
   try {
-    if (isNew) await api.create({ username: form.username, password: form.password, role: form.role, farmId: form.farmId || null });
+    if (isNew) await api.create({ username: form.username, password: form.password, role: form.role, farmId: form.farmId || null, email: form.email.trim()||null });
     else await api.update(editing.value.userId, { username: form.username, role: form.role, active: form.active });
     creating.value = false; form.password = '';
     editDialog.value?.close(); editing.value = null;
-    await load(); await notify(isNew ? 'เพิ่มผู้ใช้งานสำเร็จ' : 'แก้ไขผู้ใช้งานสำเร็จ');
+    await load(); await notify(isNew ? (form.email.trim()?'เพิ่มผู้ใช้งานแล้ว กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ':'เพิ่มผู้ใช้งานแล้ว ต้องตั้งรหัสผ่านใหม่เมื่อเข้าสู่ระบบครั้งแรก') : 'แก้ไขผู้ใช้งานสำเร็จ');
   } catch (e) { formError.value = message(e); }
   finally { busy.value = false; }
 }
@@ -75,6 +79,16 @@ async function toggle(user) {
   try { await api.update(user.userId, { username: user.username, role: user.role, active: !user.active }); await load(); }
   catch (e) { error.value = message(e); }
   finally { busy.value = false; }
+}
+async function startReissue(user){
+ if(!canReissue(user)||busy.value)return;
+ resetTarget.value=user;issuedPassword.value='';resetError.value='';await nextTick();resetDialog.value.showModal();
+}
+function closeReset(){if(busy.value)return;resetDialog.value.close();issuedPassword.value='';resetTarget.value=null;resetError.value='';}
+async function reissue(){
+ if(busy.value||issuedPassword.value)return;busy.value=true;resetError.value='';
+ try{const {data}=await api.reissueTemporaryPassword(resetTarget.value.userId);issuedPassword.value=data.temporaryPassword;await load();}
+ catch(e){resetError.value=message(e);}finally{busy.value=false;}
 }
 async function confirmDelete(user) { deleting.value = user; formError.value = ''; await nextTick(); deleteDialog.value.showModal(); }
 function closeDelete() { if (!busy.value) { deleteDialog.value?.close(); deleting.value = null; } }
@@ -98,10 +112,10 @@ async function remove() {
         <tr v-if="loading"><td colspan="6" class="empty">กำลังโหลดข้อมูล…</td></tr>
         <tr v-else-if="!rows.length"><td colspan="6" class="empty">{{ error ? 'โหลดข้อมูลไม่สำเร็จ' : 'ไม่พบผู้ใช้งาน' }}</td></tr>
         <tr v-for="u in loading ? [] : rows" :key="u.userId">
-          <td><div class="user-cell"><span class="avatar" :class="roleClass(u.role)">{{ u.username.charAt(0).toUpperCase() }}</span><div><strong>{{ u.username }}</strong><small v-if="own(u)">บัญชีของคุณ</small></div></div></td>
+          <td><div class="user-cell"><span class="avatar" :class="roleClass(u.role)">{{ u.username.charAt(0).toUpperCase() }}</span><div><strong>{{ u.username }}</strong><small v-if="own(u)">บัญชีของคุณ</small><small>{{ u.email?.trim()||'ไม่มีอีเมล' }}</small></div></div></td>
           <td><span class="badge" :class="roleClass(u.role)">{{ u.role }}</span></td><td>{{ date(u.createdAt) }}</td><td>{{ date(u.lastLoginAt, true) }}</td>
-          <td><div class="status"><button class="switch" :class="{ on: u.active }" role="switch" :aria-checked="u.active" :aria-label="`สถานะ ${u.username}`" :disabled="busy || !manageable(u)" @click="toggle(u)"><span /></button><span class="status-label" :class="{ inactive: !u.active }">{{ u.active ? 'ใช้งานอยู่' : 'ระงับการใช้งาน' }}</span></div></td>
-          <td><div class="actions"><button class="icon-button" :aria-label="`แก้ไข ${u.username}`" :disabled="busy || !manageable(u)" @click="startEdit(u)"><Pencil :size="15" /></button><button class="icon-button" :aria-label="`ลบ ${u.username}`" :disabled="busy || !manageable(u)" @click="confirmDelete(u)"><Trash2 :size="15" /></button></div></td>
+          <td><div class="status"><button class="switch" :class="{ on: u.active }" role="switch" :aria-checked="u.active" :aria-label="`สถานะ ${u.username}`" :disabled="busy || !manageable(u) || u.emailVerificationPending" @click="toggle(u)"><span /></button><span class="status-label" :class="{ inactive: !u.active }">{{ u.emailVerificationPending?'รอยืนยันอีเมล':u.active ? 'ใช้งานอยู่' : 'ระงับการใช้งาน' }}</span></div></td>
+          <td><div class="actions"><button v-if="canReissue(u)" class="icon-button" :aria-label="`ออกรหัสผ่านชั่วคราวใหม่ ${u.username}`" title="ออกรหัสผ่านชั่วคราวใหม่" :disabled="busy" @click="startReissue(u)"><KeyRound :size="16" /><span>ออกรหัสผ่านชั่วคราวใหม่</span></button><button class="icon-button" :aria-label="`แก้ไข ${u.username}`" :disabled="busy || !manageable(u)" @click="startEdit(u)"><Pencil :size="15" /></button><button class="icon-button" :aria-label="`ลบ ${u.username}`" :disabled="busy || !manageable(u)" @click="confirmDelete(u)"><Trash2 :size="15" /></button></div></td>
         </tr>
       </tbody></table></div>
       <footer class="pagination"><label>แสดง <select v-model.number="size" aria-label="จำนวนรายการต่อหน้า"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option></select> รายการต่อหน้า</label><div><button class="icon-button" aria-label="หน้าก่อนหน้า" :disabled="page === 0 || loading" @click="page--"><ChevronLeft :size="16" /></button><span>หน้า {{ page + 1 }} / {{ Math.max(1, totalPages) }}</span><button class="icon-button" aria-label="หน้าถัดไป" :disabled="page + 1 >= totalPages || loading" @click="page++"><ChevronRight :size="16" /></button></div></footer>
@@ -111,12 +125,22 @@ async function remove() {
       <label>กำหนดสิทธิ์ผู้ใช้ (User Role) <em>*</em><select v-model="form.role" required :disabled="busy"><option disabled value="">เลือกสิทธิ์ผู้ใช้</option><option v-for="r in assignableRoles" :key="r">{{ r }}</option></select></label>
       <label v-if="auth.isSuperAdmin && form.role && form.role !== 'Super Admin'">รหัสฟาร์ม <em>*</em><input v-model="form.farmId" required maxlength="100" :disabled="busy" :readonly="auth.isInspecting" placeholder="เช่น FARM-001" /><small v-if="!auth.isInspecting">ระบุรหัสฟาร์มที่มีอยู่ในระบบ</small></label>
       <label>ชื่อผู้ใช้ (Username) <em>*</em><input v-model="form.username" required pattern="[A-Za-z0-9._\-]{4,24}" minlength="4" maxlength="24" autocomplete="off" :disabled="busy" /><small>ตัวอักษรอังกฤษ ตัวเลข จุด ขีดกลาง หรือขีดล่าง ยาว 4–24 ตัว</small></label>
+      <label>อีเมล <em v-if="requiresEmail">*</em><input v-model="form.email" type="email" :required="requiresEmail" maxlength="255" autocomplete="email" :disabled="busy" placeholder="เช่น worker@example.com" /><small>{{ requiresEmail?'Farm Admin ต้องมีอีเมล':'Farm Staff / Finance Staff เว้นอีเมลได้' }} · หากระบุอีเมล ต้องยืนยันก่อนเข้าสู่ระบบ</small></label>
       <label>รหัสผ่านเริ่มต้น (Temporary Password) <em>*</em><span class="password-field"><input v-model="form.password" :type="showPassword ? 'text' : 'password'" required autocomplete="new-password" :disabled="busy" placeholder="ระบุรหัสผ่านอย่างน้อย 8 ตัวอักษร" /><button type="button" :aria-label="showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'" @click="showPassword = !showPassword"><component :is="showPassword ? EyeOff : Eye" :size="17" /></button></span></label>
-      <PasswordRequirements :password="form.password" />
+      <PasswordRequirements :password="form.password" /><small>ผู้ใช้ต้องตั้งรหัสผ่านของตัวเองเมื่อเข้าสู่ระบบครั้งแรก</small>
       <p v-if="formError" class="error" role="alert">{{ formError }}</p><button class="primary full" :disabled="busy || !canCreate"><Check :size="17" />{{ busy ? 'กำลังบันทึก…' : 'สร้างผู้ใช้ใหม่' }}</button><button type="button" class="text-button" :disabled="busy" @click="creating = false; form.password = ''">ยกเลิก</button>
     </form>
     <Teleport to="body">
-      <dialog ref="editDialog" class="edit-drawer" aria-labelledby="edit-title" @cancel.prevent="closeEdit"><form @submit.prevent="save"><header><div><h2 id="edit-title">แก้ไขผู้ใช้งาน</h2><p>{{ editing?.username }}</p></div><button type="button" class="icon-button" aria-label="ปิด" :disabled="busy" @click="closeEdit"><X :size="18" /></button></header><div class="drawer-content"><label>กำหนดสิทธิ์ผู้ใช้ <em>*</em></label><label v-for="r in assignableRoles" :key="r" class="role-option" :class="{ chosen: form.role === r }"><input v-model="form.role" type="radio" :value="r" :disabled="busy" /><div><strong>{{ r }}</strong><small>{{ roleDescriptions[roles.indexOf(r)] }}</small></div></label><label>Username <em>*</em><input v-model="form.username" required pattern="[A-Za-z0-9._\-]{4,24}" minlength="4" maxlength="24" :disabled="busy" /></label><small>ตัวอักษรอังกฤษ ตัวเลข จุด ขีดกลาง หรือขีดล่าง ยาว 4–24 ตัว</small><label>Password<input type="password" value="********" disabled /></label><small>ไม่สามารถแก้ไขรหัสผ่านในหน้านี้</small><div class="status-box"><div><strong>สถานะการใช้งาน</strong><small>เปิดเพื่ออนุญาตให้เข้าสู่ระบบได้ตามปกติ</small></div><button type="button" class="switch" :class="{ on: form.active }" role="switch" :aria-checked="form.active" aria-label="สถานะการใช้งาน" :disabled="busy" @click="form.active = !form.active"><span /></button></div><p v-if="formError" class="error" role="alert">{{ formError }}</p></div><footer><button type="button" class="secondary" :disabled="busy" @click="closeEdit">ยกเลิก</button><button class="primary" :disabled="busy">{{ busy ? 'กำลังบันทึก…' : 'บันทึก' }}</button></footer></form></dialog>
+      <dialog ref="resetDialog" class="confirm-dialog" aria-labelledby="reissue-title" @cancel.prevent="closeReset">
+        <div class="delete-icon"><KeyRound :size="28" /></div>
+        <h2 id="reissue-title">{{ issuedPassword?'ออกรหัสผ่านใหม่แล้ว':'ออกรหัสผ่านชั่วคราวใหม่?' }}</h2>
+        <p>{{ resetTarget?.username }}</p>
+        <template v-if="issuedPassword"><p>ส่งรหัสนี้ให้เจ้าของบัญชี ผู้ใช้ต้องตั้งรหัสผ่านใหม่เมื่อเข้าสู่ระบบ</p><label>รหัสผ่านชั่วคราวใหม่<input :value="issuedPassword" readonly autocomplete="off" aria-label="รหัสผ่านชั่วคราวใหม่" /></label><p>รหัสจะแสดงเฉพาะครั้งนี้ ปิดหน้าต่างแล้วจะดูซ้ำไม่ได้</p></template>
+        <p v-else>รหัสผ่านเดิมและเซสชันเดิมจะใช้ไม่ได้ทันที ผู้ใช้ต้องตั้งรหัสผ่านใหม่เมื่อเข้าสู่ระบบครั้งถัดไป</p>
+        <p v-if="resetError" class="error" role="alert">{{ resetError }}</p>
+        <div class="confirm-actions"><button class="secondary" :disabled="busy" @click="closeReset">{{ issuedPassword?'ปิด':'ยกเลิก' }}</button><button v-if="!issuedPassword" class="primary" :disabled="busy" @click="reissue">{{ busy?'กำลังออกรหัส…':'ยืนยันออกรหัสใหม่' }}</button></div>
+      </dialog>
+      <dialog ref="editDialog" class="edit-drawer" aria-labelledby="edit-title" @cancel.prevent="closeEdit"><form @submit.prevent="save"><header><div><h2 id="edit-title">แก้ไขผู้ใช้งาน</h2><p>{{ editing?.username }}</p></div><button type="button" class="icon-button" aria-label="ปิด" :disabled="busy" @click="closeEdit"><X :size="18" /></button></header><div class="drawer-content"><label>กำหนดสิทธิ์ผู้ใช้ <em>*</em></label><label v-for="r in assignableRoles" :key="r" class="role-option" :class="{ chosen: form.role === r }"><input v-model="form.role" type="radio" :value="r" :disabled="busy" /><div><strong>{{ r }}</strong><small>{{ roleDescriptions[roles.indexOf(r)] }}</small></div></label><label>Username <em>*</em><input v-model="form.username" required pattern="[A-Za-z0-9._\-]{4,24}" minlength="4" maxlength="24" :disabled="busy" /></label><small>ตัวอักษรอังกฤษ ตัวเลข จุด ขีดกลาง หรือขีดล่าง ยาว 4–24 ตัว</small><label>Password<input type="password" value="********" disabled /></label><small>ไม่สามารถแก้ไขรหัสผ่านในหน้านี้</small><div class="status-box"><div><strong>สถานะการใช้งาน</strong><small>เปิดเพื่ออนุญาตให้เข้าสู่ระบบได้ตามปกติ</small></div><button type="button" class="switch" :class="{ on: form.active }" role="switch" :aria-checked="form.active" aria-label="สถานะการใช้งาน" :disabled="busy||editing?.emailVerificationPending" @click="form.active = !form.active"><span /></button></div><p v-if="formError" class="error" role="alert">{{ formError }}</p></div><footer><button type="button" class="secondary" :disabled="busy" @click="closeEdit">ยกเลิก</button><button class="primary" :disabled="busy">{{ busy ? 'กำลังบันทึก…' : 'บันทึก' }}</button></footer></form></dialog>
       <dialog ref="deleteDialog" class="confirm-dialog" aria-labelledby="delete-title" @cancel.prevent="closeDelete"><div class="delete-icon"><Trash2 :size="28" /></div><h2 id="delete-title">ลบผู้ใช้งานนี้ใช่ไหม?</h2><p>{{ deleting?.username }} จะเข้าสู่ระบบไม่ได้หลังจากลบ</p><p class="delete-note">บัญชีนี้จะถูกนำออกจากรายการผู้ใช้งาน</p><p v-if="formError" class="error" role="alert">{{ formError }}</p><div class="confirm-actions"><button class="secondary" :disabled="busy" @click="closeDelete">ยกเลิก</button><button class="danger" :disabled="busy" @click="remove">{{ busy ? 'กำลังลบ…' : 'ยืนยัน' }}</button></div></dialog>
       <dialog ref="successDialog" class="confirm-dialog" aria-labelledby="success-title" @close="success = ''"><div class="success-icon"><Check :size="32" /></div><h2 id="success-title">{{ success }}</h2><p>บันทึกข้อมูลเรียบร้อยแล้ว</p><button class="primary full" autofocus @click="successDialog.close()">ตกลง</button></dialog>
     </Teleport>
