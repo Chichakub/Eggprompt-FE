@@ -1,6 +1,6 @@
 <script setup>
-import { reactive, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { reactive, ref, nextTick } from 'vue';
+import { RouterLink, useRouter } from 'vue-router';
 import {
     UserRound,
     KeyRound,
@@ -12,16 +12,22 @@ import {
 import { useModalStore } from '@/stores/modalStore';
 import { authApi } from '@/services/api';
 
+import { registrationError, usernamePattern, usernameHelp } from '@/composables/registrationRules';
+const router=useRouter();
+const policyDialog=ref(null),policyType=ref('terms');
+async function openPolicy(type){policyType.value=type;await nextTick();policyDialog.value.showModal();}
 const modalStore = useModalStore();
 
 const form = reactive({
     username: '',
     password: '',
+    confirmPassword: '',
     email: '',
     accepted: false,
 });
 
 const showPassword = ref(false);
+const showConfirmPassword=ref(false);
 const errorMessage = ref('');
 const isSubmitting = ref(false);
 
@@ -30,25 +36,8 @@ async function submit() {
 
     errorMessage.value = '';
 
-    if (!form.username.trim()) {
-        errorMessage.value = 'กรุณากรอกชื่อผู้ใช้';
-        return;
-    }
-
-    if (form.password.length < 8) {
-        errorMessage.value = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
-        return;
-    }
-
-    if (!form.email.trim()) {
-        errorMessage.value = 'กรุณากรอกอีเมล';
-        return;
-    }
-
-    if (!form.accepted) {
-        errorMessage.value = 'กรุณายอมรับเงื่อนไขการใช้งาน';
-        return;
-    }
+    errorMessage.value=registrationError(form);
+    if(errorMessage.value)return;
 
     isSubmitting.value = true;
 
@@ -60,13 +49,10 @@ async function submit() {
             accepted: form.accepted,
         });
 
-        // ===== กรณีสำเร็จ =====
-        modalStore.openSuccess({
-            title: 'ลงทะเบียนสำเร็จ',
-            message: 'กรุณาเปิดอีเมลที่ใช้ลงทะเบียนแล้วกดลิงก์ยืนยันก่อนเข้าสู่ระบบ',
-            confirmText: 'เข้าสู่ระบบ',
-            confirmTo: '/login',
-        });
+        // Keep email out of the URL and never persist either password.
+        sessionStorage.setItem('registrationEmail', form.email.trim());
+        form.password='';form.confirmPassword='';
+        await router.push({name:'verify-email',query:{registered:'1'}});
     } catch (error) {
         // ===== กรณีไม่สำเร็จ =====
         let message = 'ไม่สามารถลงทะเบียนได้ กรุณาลองอีกครั้ง';
@@ -104,7 +90,7 @@ async function submit() {
         </h1>
 
         <p class="mt-1 text-[10px] text-[#8b8580]">
-            กรอกข้อมูลฟาร์มเพื่อเริ่มต้นใช้งาน
+            กรอกข้อมูลเพื่อเริ่มต้นใช้งาน
         </p>
 
         <!-- สลับหน้า Login / Register -->
@@ -121,7 +107,7 @@ async function submit() {
             </RouterLink>
         </nav>
 
-        <form class="mt-3 space-y-3" @submit.prevent="submit">
+        <form class="mt-3 space-y-3" novalidate @submit.prevent="submit">
             <!-- ชื่อผู้ใช้ -->
             <div>
                 <label for="username" class="field-label">
@@ -130,7 +116,8 @@ async function submit() {
                 </label>
 
                 <input id="username" v-model="form.username" name="username" type="text" autocomplete="username"
-                    placeholder="somchai_owner" maxlength="100" required class="field-input" />
+                    placeholder="somchai_owner" :pattern="usernamePattern" minlength="4" maxlength="24" aria-describedby="username-help" required class="field-input" />
+                <p id="username-help" class="field-hint" :title="usernameHelp">ชื่อผู้ใช้ 4–24 ตัว เช่น somchai_owner</p>
             </div>
 
             <!-- รหัสผ่าน -->
@@ -156,11 +143,18 @@ async function submit() {
                     </button>
                 </div>
 
-                <span id="password-help" class="sr-only">
-                    รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร
-                </span>
+
             </div>
 
+            <p id="password-help" class="sr-only">รหัสผ่านอย่างน้อย 8 ตัวอักษร และไม่เกิน 72 ไบต์</p>
+            <div>
+                <label for="confirm-password" class="field-label"><KeyRound :size="11" aria-hidden="true" />ยืนยันรหัสผ่าน</label>
+                <div class="relative">
+                    <input id="confirm-password" v-model="form.confirmPassword" :type="showConfirmPassword?'text':'password'" autocomplete="new-password" required class="field-input password-input" placeholder="กรอกรหัสผ่านอีกครั้ง" aria-describedby="confirm-password-help" />
+                    <button type="button" :aria-label="showConfirmPassword?'ซ่อนรหัสผ่านยืนยัน':'แสดงรหัสผ่านยืนยัน'" :aria-pressed="showConfirmPassword" class="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-lg text-[#23311e]" @click="showConfirmPassword=!showConfirmPassword"><Eye v-if="showConfirmPassword" :size="17" /><EyeOff v-else :size="17" /></button>
+                </div>
+                <p v-if="form.confirmPassword" id="confirm-password-help" class="field-hint" :class="form.password===form.confirmPassword?'text-green-700':'text-red-700'" aria-live="polite">{{ form.password===form.confirmPassword?'รหัสผ่านตรงกัน':'รหัสผ่านทั้งสองช่องยังไม่ตรงกัน' }}</p>
+            </div>
             <!-- อีเมล -->
             <div>
                 <label for="email" class="field-label">
@@ -169,31 +163,19 @@ async function submit() {
                 </label>
 
                 <input id="email" v-model="form.email" name="email" type="email" autocomplete="email"
-                    placeholder="somchaieggfarm@gmail.com" required class="field-input" />
+                    placeholder="somchaieggfarm@gmail.com" maxlength="255" required class="field-input" />
             </div>
 
-            <!-- ยอมรับเงื่อนไข -->
-            <label for="accepted" class="flex cursor-pointer items-start gap-2 pt-3
-               text-[8px] leading-relaxed text-[#68615b]">
-                <input id="accepted" v-model="form.accepted" name="accepted" type="checkbox" required
-                    class="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[#2864eb]" />
-
-                <span>
-                    ฉันยอมรับ
-                    <span class="font-medium text-[#be5a08]">
-                        เงื่อนไขการใช้งาน
-                    </span>
-                    และ
-                    <span class="font-medium text-[#be5a08]">
-                        นโยบายความเป็นส่วนตัว
-                    </span>
-                </span>
-            </label>
+            <div class="registration-consent">
+                <input id="accepted" v-model="form.accepted" name="accepted" type="checkbox" required class="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[#2864eb]" />
+                <div><label for="accepted">ฉันยอมรับ</label> <button type="button" class="policy-link" @click="openPolicy('terms')">เงื่อนไขการใช้งาน</button> และ <button type="button" class="policy-link" @click="openPolicy('privacy')">นโยบายความเป็นส่วนตัว</button></div>
+            </div>
 
             <p v-if="errorMessage" role="alert" class="text-[10px] text-red-700">
                 {{ errorMessage }}
             </p>
 
+            <p class="registration-note">สมัครเป็น Farm Admin · ต้องยืนยันอีเมลก่อนเข้าสู่ระบบ</p>
             <!-- ลงทะเบียน -->
             <button type="submit" :disabled="isSubmitting" :aria-busy="isSubmitting" class="flex min-h-9 w-full items-center justify-center
          gap-2 rounded-[9px] bg-[#f6d390] px-2 py-2
@@ -216,9 +198,19 @@ async function submit() {
             </RouterLink>
         </p>
     </section>
+    <Teleport to="body"><dialog ref="policyDialog" aria-labelledby="registration-policy-title" class="registration-policy">
+        <h2 id="registration-policy-title">{{ policyType==='terms'?'เงื่อนไขการใช้งาน':'นโยบายความเป็นส่วนตัว' }}</h2>
+        <template v-if="policyType==='terms'"><p>การสมัครด้วยตนเองเป็นการสร้างบัญชี Farm Admin สำหรับดูแลฟาร์ม ผู้ใช้ต้องยืนยันอีเมลก่อนเข้าสู่ระบบ</p><p>กรอกข้อมูลบัญชีและฟาร์มให้ถูกต้อง ใช้งานตามสิทธิ์ที่ได้รับ และเก็บรหัสผ่านกับลิงก์ยืนยันเป็นส่วนตัว ไม่ใช้บัญชีเพื่อเข้าถึงข้อมูลฟาร์มที่ตนไม่มีสิทธิ์</p><p>ตั้งค่าฟาร์ม โรงเรือน และฝูงไก่ให้ครบก่อนเริ่มใช้งาน</p></template>
+        <template v-else><p>ระบบใช้ชื่อผู้ใช้ อีเมล และรหัสผ่านเพื่อสร้างบัญชี ยืนยันอีเมล เข้าสู่ระบบ และกู้คืนการเข้าถึงบัญชี โดยจัดเก็บรหัสผ่านเป็นค่าแฮช</p><p>ข้อมูลบัญชีและข้อมูลการดำเนินงานฟาร์มจัดเก็บในฐานข้อมูลของโครงการ ผู้ดูแลระบบและผู้ดูแลฟาร์มเข้าถึงข้อมูลตามสิทธิ์ของตน ระบบส่งอีเมลยืนยันและกู้คืนบัญชีผ่านบริการอีเมลที่โครงการตั้งค่าไว้</p><p>เมื่อเลือกคงสถานะล็อกอิน ระบบจะเก็บ token ในเบราว์เซอร์จนกว่าจะหมดอายุหรือออกจากระบบ หากต้องการแก้ไขข้อมูลบัญชีหรือสอบถามการใช้ข้อมูล ให้ติดต่อผู้ดูแลโครงการ</p></template>
+        <button type="button" @click="policyDialog.close()">ปิด</button>
+    </dialog></Teleport>
 </template>
 
 <style scoped>
+.field-hint{margin-top:5px;font-size:9px;font-weight:400;line-height:1.5;color:#8b8580}.registration-consent{display:flex;align-items:flex-start;gap:8px;padding-top:10px;font-size:8px;line-height:1.8;color:#68615b}.policy-link{display:inline;padding:0;border:0;background:none;color:#be5a08;font:inherit;font-weight:600;cursor:pointer}.policy-link:hover{text-decoration:underline}.policy-link:focus-visible{outline:2px solid #a76a00;outline-offset:3px;border-radius:2px}.registration-note{font-size:9px;font-weight:400;line-height:1.6;text-align:center;color:#8b8580}
+
+.registration-policy{position:fixed;inset:0;margin:auto;width:520px;max-width:calc(100vw - 32px);max-height:calc(100dvh - 40px);overflow:auto;padding:28px;border:1px solid #e9dfd0;border-radius:20px;background:#fffdfa;color:#293823;box-sizing:border-box}.registration-policy::backdrop{background:#29382366}.registration-policy h2{font-size:20px;font-weight:700;margin-bottom:18px}.registration-policy p{text-wrap:pretty;font-size:14px;line-height:1.8;margin-bottom:14px}.registration-policy button{display:block;min-height:44px;padding:10px 30px;background:#f6d390;border-radius:10px;margin:24px auto 0;font-weight:700}
+
 .field-label {
     display: flex;
     align-items: center;
