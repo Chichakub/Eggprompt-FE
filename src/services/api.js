@@ -98,6 +98,7 @@ export const authApi = {
   }),
 };
 export const userManagementApi = {
+  reissueTemporaryPassword: (id) => api.post(`api/v1/admin/users/${id}/temporary-password`),
   list: (params) => api.get('api/v1/admin/users', { params }),
   create: (payload) => api.post('api/v1/admin/users', payload),
   update: (id, payload) => api.put(`api/v1/admin/users/${id}`, payload),

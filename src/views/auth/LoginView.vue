@@ -134,9 +134,9 @@ async function submit() {
 
             <div class="flex items-center justify-between pt-1 text-[9px] text-[#68615b]">
                 <label for="remember" class="flex cursor-pointer items-center gap-1.5">
-                    <input id="remember" v-model="form.remember" type="checkbox"
+                    <input id="remember" title="คงสถานะล็อกอินบนเบราว์เซอร์นี้จนกว่าเซสชันจะหมดอายุหรือออกจากระบบ" v-model="form.remember" type="checkbox"
                         class="h-3.5 w-3.5 accent-[#2864eb]" />
-                    จดจำบัญชี
+                    จดจำฉันที
                 </label>
                 <RouterLink to="/forgot-password" class="hover:underline">ลืมรหัสผ่าน?</RouterLink>
             </div>

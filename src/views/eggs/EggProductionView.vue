@@ -68,7 +68,6 @@ onBeforeUnmount(()=>generation++);
  <p v-if="error" role="alert" class="error">{{ error }} <button v-if="!busy" @click="load">โหลดข้อมูลใหม่</button></p>
  <p v-if="loading" role="status">กำลังโหลดข้อมูล…</p>
  <template v-else>
- <h3>1. เลือกโรงเรือนที่ต้องการบันทึก</h3>
  <div class="houses"><button v-for="f in available" :key="f.flockId" :class="{selected:selected===f.flockId}" :disabled="busy||!!editing" @click="pick(f.flockId)"><strong>{{ f.houseName }}</strong><span>{{ f.flockCode }} · ไก่ {{ number(f.currentCount) }} ตัว</span></button></div>
  <p v-if="flocksReady&&!available.length" class="empty">ยังไม่มีฝูงไก่ที่กำลังเลี้ยง กรุณาเพิ่มข้อมูลฝูงไก่ก่อนบันทึกผลผลิต</p>
  <form v-if="flocksReady&&chosen" class="entry-panel" @submit.prevent="confirm">

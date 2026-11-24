@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { ArrowLeft, ArrowRight, CircleCheck, Clock, Mail } from 'lucide-vue-next';
 import BaseInput from '@/components/form/BaseInput.vue';
@@ -8,18 +8,26 @@ import { authApi } from '@/services/api';
 const route = useRoute();
 const token = computed(() => typeof route.query.token === 'string' ? route.query.token : '');
 const status = ref('ready');
-const email = ref('');
+const registered=route.query.registered==='1';
+const email = ref(registered?(sessionStorage.getItem('registrationEmail')||''):'');
+if(registered)sessionStorage.removeItem('registrationEmail');
+const seconds=ref(registered?60:0);
+let timer;
+onMounted(()=>{timer=setInterval(()=>{if(seconds.value>0)seconds.value--;},1000);});
+onBeforeUnmount(()=>clearInterval(timer));
 const busy = ref(false);
 const message = ref('');
 const error = ref('');
 const heading = computed(() => {
     if (status.value === 'verified') return 'ยืนยันอีเมลสำเร็จ';
     if (status.value === 'expired') return 'ลิงก์ยืนยันใช้ไม่ได้';
+    if(registered&&!token.value)return 'ตรวจสอบอีเมลของคุณ';
     return token.value ? 'ยืนยันอีเมลของคุณ' : 'ขอลิงก์ยืนยันใหม่';
 });
 const buttonClass = 'flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#f6d390] px-4 py-2 text-sm font-bold text-[#23311e] hover:bg-[#efc36c] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#956b23] disabled:opacity-50';
 
 async function verify() {
+    if(busy.value)return;
     busy.value = true;
     error.value = '';
     try {
@@ -37,11 +45,13 @@ async function verify() {
 }
 
 async function resend() {
+    if(busy.value||seconds.value>0)return;
     busy.value = true;
     error.value = '';
     try {
         await authApi.resendVerification({ email: email.value.trim() });
-        message.value = 'หากอีเมลนี้มีบัญชีที่รอยืนยัน ระบบจะส่งลิงก์ใหม่ให้';
+        message.value = 'รับคำขอแล้ว หากอีเมลนี้มีบัญชีที่รอยืนยัน ระบบจะส่งลิงก์ใหม่ให้ กรุณาตรวจกล่องจดหมายและสแปม';
+        seconds.value=60;
     } catch {
         error.value = 'ส่งคำขอไม่สำเร็จ กรุณาลองอีกครั้ง';
     } finally {
@@ -55,11 +65,11 @@ async function resend() {
         class="w-full max-w-[400px] rounded-3xl border border-[#e9dfd0] bg-white p-6 shadow-[0_12px_40px_#23311e0d] sm:p-8">
         <header class="text-center" aria-live="polite">
             <div class="mx-auto mb-5 flex size-14 items-center justify-center rounded-2xl border"
-                :class="status === 'verified' || message
+                :class="status === 'verified'
                     ? 'border-[#dce7cf] bg-[#eef4e6] text-[#436333]'
                     : 'border-[#f0dfb6] bg-[#fff5dc] text-[#8a5819]'"
                 aria-hidden="true">
-                <CircleCheck v-if="status === 'verified' || message" :size="26" />
+                <CircleCheck v-if="status === 'verified'" :size="26" />
                 <Clock v-else-if="status === 'expired'" :size="26" />
                 <Mail v-else :size="26" />
             </div>
@@ -74,6 +84,7 @@ async function resend() {
             <p v-else-if="token" class="mt-2 text-sm leading-relaxed text-[#5a6553]">
                 กดยืนยันเพื่อเปิดใช้งานบัญชีไข่พร้อม
             </p>
+            <p v-else-if="registered" class="mt-2 text-sm leading-relaxed text-[#5a6553]">ลงทะเบียนบัญชี Farm Admin แล้ว เปิดอีเมลที่ใช้สมัครและกดลิงก์ยืนยันก่อนเข้าสู่ระบบ หากยังไม่พบให้ตรวจสแปมหรือขอลิงก์ใหม่</p>
             <p v-else class="mt-2 text-sm leading-relaxed text-[#5a6553]">
                 กรอกอีเมลที่ใช้สร้างบัญชีเพื่อรับลิงก์ใหม่
             </p>
@@ -88,11 +99,11 @@ async function resend() {
                 {{ busy ? 'กำลังยืนยัน…' : 'ยืนยันอีเมล' }}
                 <ArrowRight v-if="!busy" :size="16" aria-hidden="true" />
             </button>
-            <form v-else-if="!message" class="space-y-4" :aria-busy="busy" @submit.prevent="resend">
+            <form v-else class="space-y-4" :aria-busy="busy" @submit.prevent="resend">
                 <BaseInput id="verification-email" v-model="email" type="email" label="อีเมลที่ใช้สร้างบัญชี"
                     autocomplete="email" :maxlength="255" required />
-                <button type="submit" :class="buttonClass" :disabled="busy">
-                    {{ busy ? 'กำลังส่งคำขอ…' : 'ส่งอีเมลยืนยันอีกครั้ง' }}
+                <button type="submit" :class="buttonClass" :disabled="busy||seconds>0">
+                    {{ busy ? 'กำลังส่งคำขอ…' : seconds>0 ? `ขอลิงก์ใหม่ได้ใน ${seconds} วินาที` : 'ส่งอีเมลยืนยันอีกครั้ง' }}
                 </button>
             </form>
             <p v-if="error" role="alert" class="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">{{ error }}</p>
