@@ -31,7 +31,7 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
     if (auth.inspectionVerified && auth.currentFarmId) {
-      config.headers.set('farm_id', auth.currentFarmId);
+      config.headers.set('X-Farm-Id', auth.currentFarmId);
     }
   }
   return config;
