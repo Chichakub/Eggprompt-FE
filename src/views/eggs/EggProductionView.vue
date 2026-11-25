@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useModalStore } from '@/stores/modalStore';
 import { eggFields, emptyEggEntry, eggSummary, roundLabels } from '@/composables/eggProduction';
 const auth=useAuthStore(),modal=useModalStore();
+const displayToday = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' }).format(new Date());
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const form=ref(emptyEggEntry(today())),flocks=ref([]),logs=ref([]),loading=ref(false),busy=ref(false),error=ref('');
 const flocksReady=ref(false),logsReady=ref(false);
@@ -64,7 +65,7 @@ onBeforeUnmount(()=>generation++);
 </script>
 <template>
 <section class="egg-page">
- <header ref="formTop"><div><h1>จัดการผลผลิตไข่</h1><p>บันทึกไข่แยกตามเบอร์และรอบเก็บ พร้อมสรุปผลผลิตประจำวัน</p></div><span class="date-chip">{{ new Intl.DateTimeFormat('th-TH',{dateStyle:'long'}).format(new Date()) }}</span></header>
+ <header ref="formTop"><div><h1>จัดการผลผลิตไข่</h1><p>บันทึกไข่แยกตามเบอร์และรอบเก็บ พร้อมสรุปผลผลิตประจำวัน</p></div><span class="date-chip">วันนี้ {{ displayToday }}</span></header>
  <p v-if="error" role="alert" class="error">{{ error }} <button v-if="!busy" @click="load">โหลดข้อมูลใหม่</button></p>
  <p v-if="loading" role="status">กำลังโหลดข้อมูล…</p>
  <template v-else>

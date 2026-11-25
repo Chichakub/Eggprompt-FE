@@ -7,6 +7,8 @@ import { flockApi, healthCaseApi, healthLogApi } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useModalStore } from '@/stores/modalStore';
 
+const displayToday = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' }).format(new Date());
+
 const auth = useAuthStore();
 const modal = useModalStore();
 const modes = [
@@ -194,6 +196,7 @@ onBeforeUnmount(() => { generation++; });
   <section class="health-page" :aria-busy="loading">
     <header class="page-header">
       <div><h1>ข้อมูลสุขภาพไก่</h1><p>บันทึกสุขภาพและจำนวนไก่ตายหรือคัดทิ้งประจำวัน</p></div>
+      <span class="date-chip">วันนี้ {{ displayToday }}</span>
     </header>
     <p v-if="loading" role="status">กำลังโหลดข้อมูลฝูงไก่…</p>
     <p v-if="loadError" class="error" role="alert">{{ loadError }} <button type="button" @click="loadFlocks()">ลองใหม่</button></p>
@@ -323,6 +326,7 @@ onBeforeUnmount(() => { generation++; });
 
 <style scoped>
 .health-page { max-width: 68rem; margin: 0 auto; color: #292b20; }
+.date-chip { border-radius: 999px; background: #dbe7ce; padding: .25rem .75rem; font-size: .75rem; color: #405329; white-space: nowrap; }
 .page-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.35rem; }
 h1 { font-size: 1.65rem; font-weight: 700; }
 h2 { font-size: 1.25rem; font-weight: 700; }
