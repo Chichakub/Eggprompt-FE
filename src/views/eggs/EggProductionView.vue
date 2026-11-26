@@ -1,14 +1,15 @@
 <script setup>
-import HorizontalPicker from '@/components/houses/HorizontalPicker.vue';
+import HouseSelector from '@/components/houses/HouseSelector.vue';
 import { computed, ref, watch, onBeforeUnmount, nextTick } from 'vue';
 import { ClipboardList, Pencil, Trash2, Search, X, Egg, TriangleAlert } from 'lucide-vue-next';
-import { eggProductionApi, flockApi } from '@/services/api';
+import { eggProductionApi, flockApi, houseApi } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useModalStore } from '@/stores/modalStore';
 import { eggFields, emptyEggEntry, eggSummary, roundLabels } from '@/composables/eggProduction';
 const auth=useAuthStore(),modal=useModalStore();
 const displayToday = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' }).format(new Date());
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const houses=ref([]),emptyHouseId=ref(null);
 const form=ref(emptyEggEntry(today())),flocks=ref([]),logs=ref([]),loading=ref(false),busy=ref(false),error=ref('');
 const flocksReady=ref(false),logsReady=ref(false);
 const selected=ref(null),editing=ref(null),search=ref(''),filterHouse=ref(''),filterDate=ref('');
@@ -16,6 +17,7 @@ const confirmDialog=ref(null),deleteDialog=ref(null),detailDialog=ref(null),targ
 const canManage=computed(()=>auth.isFarmAdmin||auth.isSuperAdmin);
 const available=computed(()=>flocks.value.filter(f=>f.status!=='RETIRED'));
 const chosen=computed(()=>flocks.value.find(f=>f.flockId===selected.value));
+const selectedHouseId=computed({get:()=>chosen.value?.houseId??emptyHouseId.value,set:id=>{emptyHouseId.value=id;pick(available.value.find(f=>f.houseId===id)?.flockId??null);}});
 const summary=computed(()=>eggSummary(form.value));
 const dayTotal=computed(()=>logs.value.filter(l=>l.values.flockId===selected.value&&l.values.recordDate===form.value.recordDate).reduce((n,l)=>n+l.summary.totalEggCount,0));
 const filtered=computed(()=>logs.value.filter(l=>(!filterHouse.value||String(l.values.flockId)===filterHouse.value)&&(!filterDate.value||l.values.recordDate===filterDate.value)&&`${l.houseName} ${l.flockCode} ${l.recorder} ${l.values.eggLotNumber||''}`.toLowerCase().includes(search.value.toLowerCase())));
@@ -26,9 +28,10 @@ async function load(){
  const g=++generation;if(!auth.isAuthenticated){logs.value=[];flocks.value=[];flocksReady.value=false;logsReady.value=false;return;}
  loading.value=true;error.value='';flocksReady.value=false;logsReady.value=false;
  const params=auth.isSuperAdmin?{farmId:auth.effectiveFarmId}:{};
- const [f,l]=await Promise.allSettled([flockApi.list(params),eggProductionApi.list(params)]);
+ const [f,l,h]=await Promise.allSettled([flockApi.list(params),eggProductionApi.list(params),houseApi.list(params)]);
  if(g!==generation)return;
  const errors=[];
+ if(h.status==='fulfilled')houses.value=h.value.data;else{houses.value=[];errors.push('โหลดข้อมูลโรงเรือนไม่สำเร็จ กรุณาลองอีกครั้ง');}
  if(f.status==='fulfilled'){
    flocks.value=f.value.data;flocksReady.value=true;
    if(!flocks.value.some(x=>x.flockId===selected.value))selected.value=available.value[0]?.flockId??null;
@@ -61,7 +64,7 @@ async function edit(log){if(!canManage.value||busy.value)return;editing.value=lo
 async function askDelete(log){if(!canManage.value)return;target.value=log;await nextTick();deleteDialog.value.showModal();}
 async function remove(){if(!canManage.value||busy.value)return;busy.value=true;error.value='';try{await eggProductionApi.remove(target.value.eggLogId);deleteDialog.value.close();if(editing.value===target.value.eggLogId)reset();await load();modal.openSuccess({title:'ลบสำเร็จ',message:'นำบันทึกออกจากรายการแล้ว'});}catch(e){error.value=e.response?.data?.message||'ลบไม่สำเร็จ';deleteDialog.value.close();}finally{busy.value=false;}}
 async function details(log){target.value=log;await nextTick();detailDialog.value.showModal();}
-watch(()=>auth.effectiveFarmId,()=>{reset();selected.value=null;logs.value=[];flocks.value=[];load();},{immediate:true});
+watch(()=>auth.effectiveFarmId,()=>{reset();selected.value=null;emptyHouseId.value=null;logs.value=[];flocks.value=[];houses.value=[];load();},{immediate:true});
 onBeforeUnmount(()=>generation++);
 </script>
 <template>
@@ -70,8 +73,8 @@ onBeforeUnmount(()=>generation++);
  <p v-if="error" role="alert" class="error">{{ error }} <button v-if="!busy" @click="load">โหลดข้อมูลใหม่</button></p>
  <p v-if="loading" role="status">กำลังโหลดข้อมูล…</p>
  <template v-else>
- <HorizontalPicker class="houses"><button v-for="f in available" :key="f.flockId" :class="{selected:selected===f.flockId}" :disabled="busy||!!editing" @click="pick(f.flockId)"><strong>{{ f.houseName }}</strong><span>{{ f.flockCode }} · ไก่ {{ number(f.currentCount) }} ตัว</span></button></HorizontalPicker>
- <p v-if="flocksReady&&!available.length" class="empty">ยังไม่มีฝูงไก่ที่กำลังเลี้ยง กรุณาเพิ่มข้อมูลฝูงไก่ก่อนบันทึกผลผลิต</p>
+ <HouseSelector v-model="selectedHouseId" class="houses" :houses="houses" :flocks="available" :status-ready="flocksReady" :disabled="busy||!!editing||!flocksReady" />
+ <p v-if="flocksReady&&!chosen" class="empty">โรงเรือนนี้ว่าง ยังไม่มีฝูงที่กำลังเลี้ยง กรุณาเพิ่มข้อมูลฝูงไก่ก่อนบันทึกผลผลิต</p>
  <form v-if="flocksReady&&chosen" class="entry-panel" @submit.prevent="confirm">
  <div class="panel-heading"><div><h2><Egg :size="19" />{{ editing?'แก้ไขบันทึก':'บันทึกผลผลิต' }}: {{ chosen.houseName }}</h2><p>กรอกจำนวนไข่ของรอบนี้ ยอดทั้งหมดคำนวณให้อัตโนมัติ</p></div><button v-if="editing" type="button" class="outline" :disabled="busy" @click="reset">ยกเลิกการแก้ไข</button></div>
  <div class="metadata"><label>วันที่บันทึก<input v-model="form.recordDate" aria-label="วันที่บันทึก" type="date" :max="today()" :min="chosen.receivedDate" :disabled="busy||!!editing" required /></label><label>ผู้บันทึก<input :value="editing?logs.find(l=>l.eggLogId===editing)?.recorder:auth.user?.username" readonly /></label></div>

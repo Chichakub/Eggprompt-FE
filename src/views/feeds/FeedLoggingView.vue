@@ -48,14 +48,6 @@ const selectedFlock = computed(() =>
   currentFlockByHouse.value.get(selectedId.value),
 );
 
-function houseDetail(houseId) {
-  const flock = currentFlockByHouse.value.get(houseId);
-  if (!flock) return "ยังไม่มีฝูงที่กำลังเลี้ยง";
-  if (flock.currentCount == null) return "ยังไม่มีข้อมูลจำนวนไก่";
-
-  return `ไก่ ${fmtNum(flock.currentCount)} ตัว`;
-}
-
 async function loadHouses() {
   loading.value = true;
   loadError.value = "";
@@ -178,13 +170,7 @@ onMounted(() => {
     <p v-else-if="!houses.length">ยังไม่มีโรงเรือนในฟาร์มนี้</p>
 
     <template v-else>
-      <HouseSelector v-model="selectedId" :houses="houses">
-        <template #house-detail="{ house }">
-          <span v-if="flocksLoaded" class="text-xs opacity-80">
-            {{ houseDetail(house.houseId) }}
-          </span>
-        </template>
-      </HouseSelector>
+      <HouseSelector v-model="selectedId" :houses="houses" :flocks="flocks" :status-ready="flocksLoaded" :disabled="saving || !flocksLoaded" />
 
       <section
         v-if="selectedHouse"
