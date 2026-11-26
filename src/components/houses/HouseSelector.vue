@@ -1,5 +1,6 @@
 <script setup>
 import { Warehouse } from 'lucide-vue-next'
+import HorizontalPicker from './HorizontalPicker.vue'
 
 defineProps({
   houses: { type: Array, required: true },
@@ -14,7 +15,7 @@ const selectedId = defineModel({ type: Number, default: null })
       เลือกโรงเรือนที่ต้องการบันทึก
     </legend>
 
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <HorizontalPicker>
       <label v-for="house in houses" :key="house.houseId" class="cursor-pointer">
         <input
           v-model="selectedId"
@@ -36,6 +37,6 @@ const selectedId = defineModel({ type: Number, default: null })
           <slot name="house-detail" :house="house" />
         </span>
       </label>
-    </div>
+    </HorizontalPicker>
   </fieldset>
 </template>

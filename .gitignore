@@ -37,3 +37,12 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Cypress local credentials
+cypress.env.json
+
+/cypress/results/
+
+/cypress/mail-inbox.json
+/cypress/exam-state.json
+/cypress/email-state.json

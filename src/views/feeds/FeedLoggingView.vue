@@ -94,6 +94,7 @@ function clearForm() {
 }
 
 watch(selectedId, clearForm);
+watch([weightKg, lotNumber], () => { formError.value = ""; });
 
 function reviewFeed() {
   if (saving.value || pending.value) return;

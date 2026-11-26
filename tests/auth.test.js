@@ -105,7 +105,7 @@ test('API sends the verified farm header only during Super Admin inspection', ()
   new Function('axios', 'useAuthStore', 'localStorage', 'sessionStorage',
     source('services/api.js').replace('import.meta.env.VITE_API_URL', "''").replaceAll('import.meta.env.BASE_URL', JSON.stringify('/')).replaceAll('export const ', 'const '))
     ({ create: () => api }, () => auth, local, session);
-  const farmHeader = (url = 'api/v1/houses') => request({ url, method: 'post', headers: new AxiosHeaders() }).headers.get('farm_id');
+  const farmHeader = (url = 'api/v1/houses') => request({ url, method: 'post', headers: new AxiosHeaders() }).headers.get('X-Farm-Id');
 
   auth.setLoginSession({ token: 'jwt', user: { user_id: 1, user_role: roles.SUPER_ADMIN } });
   assert.equal(farmHeader(), undefined);
