@@ -33,8 +33,14 @@ async function submit() {
     if(auth.isFarmAdmin) {
       try { await auth.fetchSetupStatus(); } catch { auth.profileLoaded = false; }
     }
-    modal.openSuccess({title:'เพิ่มสำเร็จ',message:setup?'ตั้งค่าฟาร์มครบทั้ง 3 ขั้นตอนแล้ว':'เพิ่มฝูงไก่แล้ว',
-      confirmTo: setup?'/dashboard':newFarmFlow.value?'/farms':{name:'farm-flocks',query:route.query}});
+    const farmCreated = newFarmFlow.value && auth.isSuperAdmin;
+    modal.openSuccess({
+      title: farmCreated ? 'สร้างฟาร์มสำเร็จ' : 'เพิ่มสำเร็จ',
+      message: setup
+        ? 'ตั้งค่าฟาร์มครบทั้ง 3 ขั้นตอนแล้ว'
+        : farmCreated ? 'บันทึกข้อมูลฟาร์ม โรงเรือน และฝูงไก่เรียบร้อยแล้ว' : 'เพิ่มฝูงไก่แล้ว',
+      confirmTo: setup ? '/dashboard' : newFarmFlow.value ? '/farms' : { name: 'farm-flocks', query: route.query },
+    });
   }catch(e){error.value=e.response?.data?.message||'บันทึกไม่สำเร็จ กรุณาลองใหม่';}
   finally{saving.value=false;}
 }
