@@ -25,7 +25,7 @@ Credentials are read from ignored `cypress.env.json`. No inbox address, email co
 
 Required fixtures: farms PM-EXAM-A/B and accounts pm.admin.a, pm.staff.a, pm.finance.a, pm.admin.b. Missing fixtures can be prepared with Eggprompt-BE/tests/postman/release1-CP26CS1/setup-excel41-fixtures.sql in the QA database. It inserts missing fixtures without resetting existing passwords. A BEFORE ALL failure means feature tests did not run.
 
-The suite creates real, isolated CY41 QA records and prepares an inspection house when farm A or B has none. Password changes use new run-specific QA accounts. Requests use the actual backend; no API responses are mocked.
+The suite creates real, isolated test records with readable names such as House-Feed-a1b2c3d4 and staff.add.a1b2c3d4 and prepares an inspection house when farm A or B has none. Password changes use new run-specific QA accounts. Requests use the actual backend; no API responses are mocked.
 
 ## Frontend deployment
 
@@ -55,3 +55,5 @@ node scripts/cleanup-cypress-exam.mjs <10-digit-run-id>
 ```
 
 After reviewing exact names, add `--apply`. Cleanup uses normal soft-delete APIs for the selected run's fixtures; it does not bypass dependencies with SQL.
+
+Generated data names use short readable labels (for example `staff.add.a1b2c3d4`, `House-Feed-a1b2c3d4`, and `Farm-NoAdmin-a1b2c3d4`). The suffix prevents collisions across runs. Existing database records keep their previous names. Test IDs and the original descriptive case titles are unchanged.

@@ -1,10 +1,10 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { ClipboardCheck, Info, Plus } from 'lucide-vue-next';
-import HorizontalPicker from '@/components/houses/HorizontalPicker.vue';
+import HouseSelector from '@/components/houses/HouseSelector.vue';
 import HealthCountField from '@/components/health/HealthCountField.vue';
 import HealthCaseList from '@/components/health/HealthCaseList.vue';
-import { flockApi, healthCaseApi, healthLogApi } from '@/services/api';
+import { flockApi, houseApi, healthCaseApi, healthLogApi } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useModalStore } from '@/stores/modalStore';
 
@@ -27,7 +27,7 @@ const lossCauses = {
 const severities = { LOW: 'เล็กน้อย', MEDIUM: 'ปานกลาง', HIGH: 'เฝ้าระวังพิเศษ' };
 const number = new Intl.NumberFormat('th-TH');
 const dateParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' });
-const flocks = ref([]);
+const flocks = ref([]), houses = ref([]), emptyHouseId = ref(null);
 const selectedId = ref(null);
 const mode = ref('dead');
 const form = reactive({ count: 0, cause: '', treatment: '', remark: '' });
@@ -44,6 +44,10 @@ const caseList = ref(null);
 let generation = 0;
 
 const selected = computed(() => flocks.value.find((flock) => flock.flockId === selectedId.value));
+const selectedHouseId = computed({
+  get: () => selected.value?.houseId ?? emptyHouseId.value,
+  set: id => { emptyHouseId.value = id; pickFlock(flocks.value.find(f => f.houseId === id)?.flockId ?? null); },
+});
 const activeModeLabel = computed(() => modes.find((tab) => tab.id === mode.value).label);
 const isLoss = computed(() => mode.value === 'dead' || mode.value === 'cull');
 const incidentFlock = computed(() => flocks.value.find((flock) => flock.flockId === incident.flockId));
@@ -67,7 +71,7 @@ async function loadFlocks(reset = false) {
     dialog.value?.close();
     incidentDialog.value?.close();
     confirmation.value = null;
-    flocks.value = [];
+    flocks.value = [];houses.value = [];emptyHouseId.value = null;
     selectedId.value = null;
     resetForm();
   }
@@ -76,8 +80,10 @@ async function loadFlocks(reset = false) {
   if (!auth.isAuthenticated || !auth.effectiveFarmId) return;
   loading.value = true;
   try {
-    const { data } = await flockApi.list(auth.isSuperAdmin ? { farmId: auth.effectiveFarmId } : {});
+    const params = auth.isSuperAdmin ? { farmId: auth.effectiveFarmId } : {};
+    const [{ data }, { data: houseRows }] = await Promise.all([flockApi.list(params), houseApi.list(params)]);
     if (version !== generation) return;
+    houses.value = houseRows;
     flocks.value = data.filter((flock) => flock.status !== 'RETIRED')
       .sort((left, right) => left.houseId - right.houseId || left.flockId - right.flockId);
     if (!selected.value) selectedId.value = flocks.value[0]?.flockId ?? null;
@@ -201,21 +207,10 @@ onBeforeUnmount(() => { generation++; });
     </header>
     <p v-if="loading" role="status">กำลังโหลดข้อมูลฝูงไก่…</p>
     <p v-if="loadError" class="error" role="alert">{{ loadError }} <button type="button" @click="loadFlocks()">ลองใหม่</button></p>
-    <p v-if="!loading && !loadError && !flocks.length">ยังไม่มีโรงเรือนที่มีฝูงไก่สำหรับบันทึก</p>
+    <p v-if="!loading && !loadError && !houses.length">ยังไม่มีโรงเรือนที่มีฝูงไก่สำหรับบันทึก</p>
 
-    <fieldset v-if="flocks.length" class="house-picker" :disabled="loading || saving">
-      <legend>เลือกโรงเรือนที่ต้องการบันทึก</legend>
-      <HorizontalPicker>
-        <label v-for="flock in flocks" :key="flock.flockId" class="choice">
-          <input type="radio" name="health-flock" :checked="selectedId === flock.flockId" @change="pickFlock(flock.flockId)" />
-          <span class="house-card">
-            <strong>{{ flock.houseName }}</strong>
-            <small>ฝูง {{ flock.flockCode }}</small>
-            <small>คงเหลือ <strong>{{ number.format(flock.currentCount) }}</strong> ตัว</small>
-          </span>
-        </label>
-      </HorizontalPicker>
-    </fieldset>
+    <HouseSelector v-if="houses.length" v-model="selectedHouseId" class="house-picker" :houses="houses" :flocks="flocks" :status-ready="!loading && !loadError" :disabled="loading || saving" />
+    <p v-if="!loading && !loadError && houses.length && !selected" class="empty-house">โรงเรือนนี้ว่าง ยังไม่มีฝูงที่กำลังเลี้ยง จึงบันทึกสุขภาพไก่ไม่ได้</p>
 
     <form v-if="selected" class="record-panel" @submit.prevent="review">
       <div class="record-header">

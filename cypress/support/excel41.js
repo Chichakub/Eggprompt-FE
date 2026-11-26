@@ -27,7 +27,11 @@ function login(username, password, landing) {
 }
 
 export const run = String(Date.now()).slice(-10);
-export const state = { run, prefix: `CY41-${run}`, fixtures: [], users: [] };
+const tag = crypto.randomUUID().replaceAll('-', '').slice(0,8);
+export const state = { run, nameToken: tag, fixtures: [], users: [] };
+const labels = {EDIT:'Edit',MIN:'Min',DUP:'Duplicate',OCC:'Occupied',INTAKE:'Intake',OVER:'Capacity',SECOND:'Second',IMMUTABLE:'DateLock',FEED:'Feed',BADFEED:'InvalidFeed',EMPTY:'Empty',EGGS:'Eggs',ROUNDS:'Rounds',DATES:'Dates','EDIT-EGG':'EditEgg',HEALTH97:'Health97',HEALTH96:'Health96',CAUSE:'Cause',SICK:'Sick'};
+export function name(kind,label) { return `${kind}-${labels[label] || label}-${tag}`; }
+export function staffName(label) { return `staff.${label}.${tag}`; }
 export const tempPassword = 'Postman@123';
 export const personalPassword = 'Changed@123';
 export const date = offset => new Date(Date.now() + offset * 86400000).toLocaleDateString('en-CA', { timeZone: 'Asia/Bangkok' });
@@ -49,7 +53,7 @@ function ensureInspectionHouse(farmId) {
   return request('GET',`api/v1/houses?farmId=${farmId}`,null,'super').then(r=>{
     expect(r.status,'inspection prerequisites').eq(200);
     if(r.body.length)return null;
-    return request('POST','api/v1/houses',{farmId,houseName:`${state.prefix}-SCOPE-${farmId.endsWith('A')?'A':'B'}`,widthM:10,lengthM:20,capacity:100,lastBuiltOrRenovatedDate:'2024-01-01'},'super').then(created=>{
+    return request('POST','api/v1/houses',{farmId,houseName:name('House',farmId.endsWith('A')?'ScopeA':'ScopeB'),widthM:10,lengthM:20,capacity:100,lastBuiltOrRenovatedDate:'2024-01-01'},'super').then(created=>{
       expect(created.status,'create missing isolated inspection house').eq(201);
       state.fixtures.push({type:'house',...created.body});return saveState();
     });
@@ -78,18 +82,18 @@ export function ok() { click('ตกลง'); }
 export function expectResponse(alias,status) { return cy.wait(alias).then(({response,request}) => { expect(response?.statusCode,alias).eq(status);return {response,request}; }); }
 export function saveState() { return cy.task('examState',state,{log:false}); }
 export function house(label,capacity=100) {
-  return request('POST','api/v1/houses',{houseName:`${state.prefix}-${label}`,widthM:10,lengthM:20,capacity,lastBuiltOrRenovatedDate:'2024-01-01'}).then(r => {
+  return request('POST','api/v1/houses',{houseName:name('House',label),widthM:10,lengthM:20,capacity,lastBuiltOrRenovatedDate:'2024-01-01'}).then(r => {
     expect(r.status,'isolated QA house prerequisite').eq(201);state.fixtures.push({type:'house',...r.body}); return saveState().then(()=>r.body);
   });
 }
 export function flock(h,label,count=100,received=date(-7)) {
-  return request('POST','api/v1/flocks',{flockCode:`${state.prefix}-${label}`,houseId:h.houseId,breedId:state.breedId,supplier:'Cypress isolated QA',pricePerBird:100,receivedDate:received,initialAgeWeeks:18,initialCount:count,initialAverageWeightG:1000,vaccinated:true}).then(r => {
+  return request('POST','api/v1/flocks',{flockCode:name('Flock',label),houseId:h.houseId,breedId:state.breedId,supplier:'Test Supplier',pricePerBird:100,receivedDate:received,initialAgeWeeks:18,initialCount:count,initialAverageWeightG:1000,vaccinated:true}).then(r => {
     expect(r.status,'isolated QA flock prerequisite').eq(201);state.fixtures.push({type:'flock',...r.body});return saveState().then(()=>r.body);
   });
 }
 export function occupied(label) { return house(label).then(h => flock(h,label).then(f => ({h,f}))); }
 export function createStaff(label) {
-  const username = `cy41.${run}.${label}`.slice(0,24);
+  const username = staffName(label);
   return request('POST','api/v1/admin/users',{username,password:tempPassword,role:'Farm Staff'}).then(r => {
     expect(r.status).eq(201);const user={...r.body,username};state.users.push(user);return saveState().then(()=>user);
   });
@@ -117,13 +121,13 @@ export function userForm(username) {
   cy.get('input[placeholder="ระบุรหัสผ่านอย่างน้อย 8 ตัวอักษร"]').should('not.be.disabled').type(tempPassword,{log:false});
 }
 export function farmForm(name,username,role='Farm Admin') {
-  fill('#farmName',name);fill('#address','Cypress QA Bangkok');fill('#farmRegistrationNumber',`CY${run}`);fill('#taxId','0105565012345');fill('#operationStartDate','2024-01-01');fill('#ownerName','Cypress QA Owner');fill('#contactPhone','0812345678');
+  fill('#farmName',name);fill('#address','Test Address Bangkok');fill('#farmRegistrationNumber',`TEST-${tag}`);fill('#taxId','0105565012345');fill('#operationStartDate','2024-01-01');fill('#ownerName','Test Owner');fill('#contactPhone','0812345678');
   cy.get('#farm-account-1-role').select(role);fill('#farm-account-1-username',username);
   if(role==='Farm Admin')fill('#farm-account-1-email',`negative-${run}@example.invalid`);
   cy.get('#farm-account-1-password').type(tempPassword,{log:false});
 }
 export function eggForm(h,lot,round='MORNING',recordDate=date(0)) {
-  cy.contains('.houses button',h.houseName).click();fill('input[aria-label="วันที่บันทึก"]',recordDate);
+  cy.contains('.houses label',h.houseName).click();fill('input[aria-label="วันที่บันทึก"]',recordDate);
   for(const [label,n] of [['ไข่แฝด',10],['เบอร์ 0',20],['เบอร์ 1',30],['ไข่เสีย / คัดทิ้ง',3]])fill(`input[aria-label="${label}"]`,n);
   cy.get('.entry-panel select').select(round);fill('input[placeholder="เช่น EGG-1121-H1"]',lot);
 }
@@ -145,4 +149,30 @@ export function loss(h,count,mode='ไก่ตาย') {
 export function assertCount(f,count) {
   request('GET','api/v1/flocks').then(r=>{expect(r.status).eq(200);expect(r.body.find(x=>x.flockId===f.flockId)?.currentCount).eq(count);});
   page('farm/flocks');cy.contains('tbody tr',f.flockCode).find('td').eq(3).find('strong').should('have.text',String(count));
+}
+
+export function checkHousePicker(screenshot) {
+  cy.get('.house-selector').should('be.visible');
+  cy.window().then(win=>{
+    cy.get('.house-selector').then(el=>expect(el[0].getBoundingClientRect().right,'house picker remains inside viewport').at.most(win.innerWidth+1));
+    cy.document().then(doc=>expect(doc.documentElement.scrollWidth,'no page-wide horizontal overflow').at.most(win.innerWidth+1));
+  });
+  cy.get('.picker-track').then(el=>{
+    const track=el[0];
+    expect(track.clientWidth,'scroll viewport has a width').greaterThan(0);
+    if(track.scrollWidth>track.clientWidth+2){
+      cy.wrap(el).scrollTo('left',{duration:0});
+      cy.get('[aria-label="เลื่อนโรงเรือนไปทางขวา"]').should('not.be.disabled').click();
+      cy.get('.picker-track').should(el=>expect(el[0].scrollLeft,'right arrow moves cards').greaterThan(0));
+      cy.get('[aria-label="เลื่อนโรงเรือนไปทางซ้าย"]').should('not.be.disabled').click();
+      cy.get('.picker-track').should(el=>expect(el[0].scrollLeft,'left arrow returns to start').at.most(2));
+    }
+  });
+  cy.contains('.house-filters button','เลี้ยงอยู่').click();
+  cy.get('.house-selector [data-occupancy="empty"]').should('not.exist');
+  cy.contains('.house-filters button','ว่าง').click();
+  cy.get('.house-selector [data-occupancy="occupied"]').should('not.exist');
+  cy.contains('.house-filters button','ทั้งหมด').click();
+  cy.get('.picker-track').invoke('outerHeight').should('be.lessThan',220);
+  if(screenshot)cy.screenshot(screenshot,{capture:'viewport'});
 }

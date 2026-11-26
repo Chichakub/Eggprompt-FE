@@ -17,7 +17,7 @@ assert len(implemented) == 38 and len(set(implemented)) == 38 and not (set(imple
 RESULT = ROOT / 'cypress/results/latest-release1.json'
 execution = json.loads(RESULT.read_text()) if RESULT.exists() else {}
 executed = {test['id']: test for test in execution.get('tests', [])}
-COVERAGE = {key: ('Implemented', 'Real browser flow; prerequisite requests use isolated CY41 fixtures. Execution: ' + executed.get(key, {}).get('state', 'NOT RUN')) for key in implemented}
+COVERAGE = {key: ('Implemented', 'Real browser flow; prerequisite requests use isolated test fixtures. Execution: ' + executed.get(key, {}).get('state', 'NOT RUN')) for key in implemented}
 COVERAGE.update({key: ('Excluded', 'Email-dependent workflow excluded from Cypress by user request; test separately if needed.') for key in EXCLUDED})
 COVERAGE['R1-10-01'] = ('Implemented — API history check', 'Feed is submitted through the browser. History/date are verified with the real API because the current feed page has no history table.')
 COVERAGE['R1-12-03'] = ('Implemented — frontend fix', 'Strict Excel requirement: cause is mandatory. The local frontend requires explicit selection. Deploy the corrected frontend before verifying on the VM.')

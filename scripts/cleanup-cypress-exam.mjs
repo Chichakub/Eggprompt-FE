@@ -3,6 +3,12 @@ import fs from 'node:fs';
 const run = process.argv[2];
 if (!/^\d{10}$/.test(run || '')) throw new Error('Usage: node scripts/cleanup-cypress-exam.mjs <10-digit-run-id> [--apply]');
 const prefix=`CY41-${run}-`, userPrefix=`cy41.${run}.`,apply=process.argv.includes('--apply');
+const manifestPath=new URL(`../cypress/results/fixtures-${run}.json`,import.meta.url);
+const recorded=fs.existsSync(manifestPath)?JSON.parse(fs.readFileSync(manifestPath,'utf8')):{};
+const ownedHouse=h=>(recorded.fixtures||[]).some(f=>f.type==='house'&&f.houseId===h.houseId&&f.houseName===h.houseName);
+const ownedFlock=f=>(recorded.fixtures||[]).some(row=>row.type==='flock'&&row.flockId===f.flockId&&row.flockCode===f.flockCode);
+const ownedUser=u=>(recorded.users||[]).some(row=>row.userId===u.userId&&row.username===u.username);
+const userSearch=recorded.nameToken||userPrefix;
 const base='https://bscit.sit.kmutt.ac.th/capstone26/cp26cs1/';
 const local=JSON.parse(fs.readFileSync(new URL('../cypress.env.json',import.meta.url),'utf8'));
 const auth=await fetch(new URL('api/v1/auth/login',base),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'pm.admin.a',password:local.qaPassword || 'Postman@123'})});
@@ -11,9 +17,9 @@ async function call(path,method='GET'){
  const r=await fetch(new URL(path,base),{method,headers:{Authorization:`Bearer ${token}`}});
  if(method==='GET'){if(!r.ok)throw new Error(`Cannot inspect fixtures: ${r.status}`);return r.json();}return r.status;
 }
-const houses=(await call('api/v1/houses')).filter(h=>h.houseName.startsWith(prefix)&&h.farmId==='PM-EXAM-A');
-const flocks=(await call('api/v1/flocks')).filter(f=>f.flockCode.startsWith(prefix)&&houses.some(h=>h.houseId===f.houseId));
-const users=(await call(`api/v1/admin/users?search=${encodeURIComponent(userPrefix)}&size=50`)).content.filter(u=>u.username.startsWith(userPrefix)&&u.farmId==='PM-EXAM-A'&&u.role==='Farm Staff');
+const houses=(await call('api/v1/houses')).filter(h=>(h.houseName.startsWith(prefix)||ownedHouse(h))&&h.farmId==='PM-EXAM-A');
+const flocks=(await call('api/v1/flocks')).filter(f=>(f.flockCode.startsWith(prefix)||ownedFlock(f))&&houses.some(h=>h.houseId===f.houseId));
+const users=(await call(`api/v1/admin/users?search=${encodeURIComponent(userSearch)}&size=50`)).content.filter(u=>(u.username.startsWith(userPrefix)||ownedUser(u))&&u.farmId==='PM-EXAM-A'&&u.role==='Farm Staff');
 console.log(JSON.stringify({run,apply,houses:houses.map(h=>({id:h.houseId,name:h.houseName})),flocks:flocks.map(f=>({id:f.flockId,code:f.flockCode})),users:users.map(u=>({id:u.userId,name:u.username}))},null,2));
 if(apply){
  const outcomes=[];
@@ -22,7 +28,7 @@ if(apply){
    const saved=JSON.parse(fs.readFileSync(manifest,'utf8'));
    if(typeof saved.originalAddress==='string'){
      const farm=await call('api/v1/farms/me');
-     if(farm.farmId==='PM-EXAM-A'&&farm.address===`Cypress QA ${run}`){
+     if(farm.farmId==='PM-EXAM-A'&&(farm.address===`Cypress QA ${run}`||(saved.nameToken&&farm.address===`Test Address ${saved.nameToken}`))){
        const restored=await fetch(new URL('api/v1/farms/me',base),{method:'PUT',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({...farm,address:saved.originalAddress})});
        outcomes.push({type:'restore QA address',status:restored.status});
      }
