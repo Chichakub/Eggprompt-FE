@@ -33,7 +33,7 @@ const PASSWORD_MASK = '••••••••••••';
             type="text"
             maxlength="255"
             :value="editing ? draft.fullName : (profile?.fullName ?? '')"
-            :readonly="!editing"
+            :disabled="!editing"
             :class="{ editable: editing, invalid: errors.fullName }"
             @input="$emit('update-field', 'fullName', $event.target.value)"
           />
@@ -46,7 +46,7 @@ const PASSWORD_MASK = '••••••••••••';
       <div class="field">
         <label for="pf-role">สิทธิ์ผู้ใช้งาน</label>
         <div class="control">
-          <input id="pf-role" type="text" :value="profile?.roleName ?? ''" readonly />
+          <input id="pf-role" type="text" :value="profile?.roleName ?? ''" disabled />
         </div>
       </div>
 
@@ -59,7 +59,7 @@ const PASSWORD_MASK = '••••••••••••';
             type="email"
             maxlength="255"
             :value="editing ? draft.email : (profile?.email ?? '')"
-            :readonly="!editing"
+            :disabled="!editing"
             :class="{ editable: editing, invalid: errors.email }"
             @input="$emit('update-field', 'email', $event.target.value)"
           />
@@ -77,7 +77,7 @@ const PASSWORD_MASK = '••••••••••••';
             type="tel"
             maxlength="20"
             :value="editing ? draft.phone : (profile?.phone ?? '')"
-            :readonly="!editing"
+            :disabled="!editing"
             :class="{ editable: editing, invalid: errors.phone }"
             @input="$emit('update-field', 'phone', $event.target.value)"
           />
@@ -90,7 +90,7 @@ const PASSWORD_MASK = '••••••••••••';
       <div class="field">
         <label for="pf-username">ชื่อผู้ใช้งาน (Username)</label>
         <div class="control">
-          <input id="pf-username" type="text" :value="profile?.username ?? ''" readonly />
+          <input id="pf-username" type="text" :value="profile?.username ?? ''" disabled />
         </div>
       </div>
 
@@ -103,14 +103,14 @@ const PASSWORD_MASK = '••••••••••••';
           </button>
         </div>
         <div class="control">
-          <input id="pf-password" type="text" :value="PASSWORD_MASK" readonly tabindex="-1" />
+          <input id="pf-password" type="text" :value="PASSWORD_MASK" disabled />
         </div>
       </div>
 
       <div class="field full">
         <label for="pf-position">ตำแหน่ง</label>
         <div class="control">
-          <input id="pf-position" type="text" :value="profile?.position ?? ''" readonly />
+          <input id="pf-position" type="text" :value="profile?.position ?? ''" disabled />
           <Building2 class="icon" :size="16" />
         </div>
       </div>
