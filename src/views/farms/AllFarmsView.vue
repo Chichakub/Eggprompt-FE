@@ -6,6 +6,7 @@ import { adminFarmApi } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
 const router = useRouter(), route = useRoute(), auth = useAuthStore();
 const rows = ref([]), summary = ref(null), search = ref(''), status = ref('all'), page = ref(0), total = ref(0), pages = ref(0);
+const searchPending = ref(false);
 const loading = ref(false), error = ref(''), opening = ref(null);
 const format = value => Number(value || 0).toLocaleString('th-TH');
 const filters = [{ value:'all', label:'ทั้งหมด' }, { value:'active', label:'ใช้งานอยู่' }, { value:'suspended', label:'ระงับบริการ' }];
@@ -37,8 +38,8 @@ async function inspect(farm) {
   } catch (e) { error.value = e.response?.data?.message || 'ไม่สามารถเปิดฟาร์มนี้ได้ กรุณาลองใหม่'; }
   finally { opening.value = null; }
 }
-watch(search, () => { clearTimeout(timer); timer = setTimeout(() => { page.value === 0 ? load() : page.value = 0; },300); });
-watch(status, () => { clearTimeout(timer); page.value === 0 ? load() : page.value = 0; });
+watch(search, () => { clearTimeout(timer); searchPending.value = true; timer = setTimeout(() => { searchPending.value = false; page.value === 0 ? load() : page.value = 0; },300); });
+watch(status, () => { clearTimeout(timer); searchPending.value = false; page.value === 0 ? load() : page.value = 0; });
 watch(page, load);
 onMounted(() => { auth.leaveInspection(); refresh(); });
 onBeforeUnmount(() => { clearTimeout(timer); requestId++; });
@@ -48,8 +49,8 @@ onBeforeUnmount(() => { clearTimeout(timer); requestId++; });
     <div class="stat-grid"><article v-for="card in cards" :key="card.title" class="stat-card"><span class="stat-icon" :class="card.color"><component :is="card.icon" :size="20" /></span><p>{{ card.title }}</p><strong>{{ summary ? card.value : '—' }}</strong><small>{{ card.detail }}</small></article></div>
     <div class="farm-panel"><div class="toolbar"><label class="search"><Search :size="18" /><input v-model="search" placeholder="ค้นหาชื่อฟาร์ม เจ้าของ หรือรหัสฟาร์ม" aria-label="ค้นหาฟาร์ม" maxlength="100" /></label><div class="filters"><button v-for="filter in filters" :key="filter.value" :class="{ selected:status === filter.value }" :aria-pressed="status === filter.value" @click="status = filter.value">{{ filter.label }}</button></div></div>
       <p v-if="route.query.error && !error" role="alert" class="error">ไม่สามารถเข้าถึงฟาร์มที่เลือกได้ กรุณาเลือกฟาร์มอีกครั้ง</p><p v-if="error" class="error" role="alert">{{ error }} <button @click="refresh">ลองใหม่</button></p>
-      <div class="table-wrap" :aria-busy="loading"><table><thead><tr><th>รหัสฟาร์ม</th><th>ชื่อฟาร์ม</th><th>เจ้าของฟาร์ม / ADMIN</th><th>โรงเรือน</th><th>บัญชีพนักงาน</th><th>สถานะ</th><th><span class="sr-only">ตรวจสอบฟาร์ม</span></th></tr></thead><tbody><tr v-if="loading"><td colspan="7" class="empty">กำลังโหลดข้อมูล…</td></tr><tr v-else-if="!rows.length"><td colspan="7" class="empty">{{ error ? 'โหลดข้อมูลไม่สำเร็จ' : 'ไม่พบฟาร์มที่ตรงกับการค้นหา' }}</td></tr><tr v-for="farm in loading ? [] : rows" :key="farm.farmId"><td class="farm-id">{{ farm.farmId }}</td><td><strong>{{ farm.farmName }}</strong></td><td><div class="owner"><Users :size="14" />{{ farm.ownerName || farm.adminName || '—' }}</div><small v-if="farm.adminName && farm.adminName !== farm.ownerName">Admin: {{ farm.adminName }}</small></td><td>{{ format(farm.houseCount) }} โรงเรือน</td><td>{{ format(farm.userCount) }} บัญชี</td><td><span class="status" :class="{ suspended: !farm.active }">{{ farm.active ? 'ใช้งานอยู่' : 'ระงับบริการ' }}</span></td><td><button class="inspect" :aria-label="`ตรวจสอบ ${farm.farmName}`" :disabled="opening !== null" @click="inspect(farm)"><Eye :size="14" />{{ opening === farm.farmId ? 'กำลังเปิด…' : 'ตรวจสอบ' }}</button></td></tr></tbody></table></div>
-      <footer><span>ทั้งหมด {{ format(total) }} ฟาร์ม</span><div><button aria-label="หน้าก่อนหน้า" :disabled="page === 0 || loading" @click="page--"><ChevronLeft :size="16" /></button><span>หน้า {{ page + 1 }} / {{ Math.max(1,pages) }}</span><button aria-label="หน้าถัดไป" :disabled="page + 1 >= pages || loading" @click="page++"><ChevronRight :size="16" /></button></div></footer>
+      <div class="table-wrap" :aria-busy="loading || searchPending"><table><thead><tr><th>รหัสฟาร์ม</th><th>ชื่อฟาร์ม</th><th>เจ้าของฟาร์ม / ADMIN</th><th>โรงเรือน</th><th>บัญชีพนักงาน</th><th>สถานะ</th><th><span class="sr-only">ตรวจสอบฟาร์ม</span></th></tr></thead><tbody><tr v-if="loading"><td colspan="7" class="empty">กำลังโหลดข้อมูล…</td></tr><tr v-else-if="!rows.length"><td colspan="7" class="empty">{{ error ? 'โหลดข้อมูลไม่สำเร็จ' : 'ไม่พบฟาร์มที่ตรงกับการค้นหา' }}</td></tr><tr v-for="farm in loading ? [] : rows" :key="farm.farmId"><td class="farm-id">{{ farm.farmId }}</td><td><strong>{{ farm.farmName }}</strong></td><td><div class="owner"><Users :size="14" />{{ farm.ownerName || farm.adminName || '—' }}</div><small v-if="farm.adminName && farm.adminName !== farm.ownerName">Admin: {{ farm.adminName }}</small></td><td>{{ format(farm.houseCount) }} โรงเรือน</td><td>{{ format(farm.userCount) }} บัญชี</td><td><span class="status" :class="{ suspended: !farm.active }">{{ farm.active ? 'ใช้งานอยู่' : 'ระงับบริการ' }}</span></td><td><button class="inspect" :aria-label="`ตรวจสอบ ${farm.farmName}`" :disabled="opening !== null" @click="inspect(farm)"><Eye :size="14" />{{ opening === farm.farmId ? 'กำลังเปิด…' : 'ตรวจสอบ' }}</button></td></tr></tbody></table></div>
+      <footer><span>ทั้งหมด {{ format(total) }} ฟาร์ม</span><div><button aria-label="หน้าก่อนหน้า" :disabled="page === 0 || loading || searchPending" @click="page--"><ChevronLeft :size="16" /></button><span>หน้า {{ page + 1 }} / {{ Math.max(1,pages) }}</span><button aria-label="หน้าถัดไป" :disabled="page + 1 >= pages || loading || searchPending" @click="page++"><ChevronRight :size="16" /></button></div></footer>
     </div>
   </section>
 </template>

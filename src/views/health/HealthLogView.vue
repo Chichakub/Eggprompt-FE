@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { ClipboardCheck, Info, Plus } from 'lucide-vue-next';
+import HorizontalPicker from '@/components/houses/HorizontalPicker.vue';
 import HealthCountField from '@/components/health/HealthCountField.vue';
 import HealthCaseList from '@/components/health/HealthCaseList.vue';
 import { flockApi, healthCaseApi, healthLogApi } from '@/services/api';
@@ -51,7 +52,7 @@ const remaining = computed(() => (selected.value?.currentCount ?? 0)
 const validCount = (value) => Number.isSafeInteger(value) && value >= 0;
 const canReview = computed(() => {
   if (!selected.value || loading.value || saving.value || loadError.value) return false;
-  if (isLoss.value) return validCount(form.count) && form.count > 0 && remaining.value >= 0;
+  if (isLoss.value) return validCount(form.count) && form.count > 0 && remaining.value >= 0 && Boolean(form.cause.trim());
   return Boolean(form.treatment.trim()) && selected.value.currentCount > 0;
 });
 
@@ -139,7 +140,7 @@ async function saveIncident() {
 
 function review() {
   if (!canReview.value) return;
-  const cause = form.cause || unknownCause;
+  const cause = form.cause.trim();
   confirmation.value = {
     houseName: selected.value.houseName,
     mode: activeModeLabel.value,
@@ -204,7 +205,7 @@ onBeforeUnmount(() => { generation++; });
 
     <fieldset v-if="flocks.length" class="house-picker" :disabled="loading || saving">
       <legend>เลือกโรงเรือนที่ต้องการบันทึก</legend>
-      <div class="house-cards">
+      <HorizontalPicker>
         <label v-for="flock in flocks" :key="flock.flockId" class="choice">
           <input type="radio" name="health-flock" :checked="selectedId === flock.flockId" @change="pickFlock(flock.flockId)" />
           <span class="house-card">
@@ -213,7 +214,7 @@ onBeforeUnmount(() => { generation++; });
             <small>คงเหลือ <strong>{{ number.format(flock.currentCount) }}</strong> ตัว</small>
           </span>
         </label>
-      </div>
+      </HorizontalPicker>
     </fieldset>
 
     <form v-if="selected" class="record-panel" @submit.prevent="review">
@@ -236,9 +237,10 @@ onBeforeUnmount(() => { generation++; });
         <label v-else class="field">{{ mode === 'vaccine' ? 'ชื่อวัคซีน' : 'ชื่อยา/เวชภัณฑ์' }}
           <input v-model="form.treatment" maxlength="1980" required />
         </label>
-        <label v-if="isLoss" class="field">{{ mode === 'dead' ? 'สาเหตุการตาย' : 'เหตุผลที่คัดทิ้ง' }} (ไม่บังคับ)
-          <select v-model="form.cause">
-            <option value="">{{ unknownCause }}</option>
+        <label v-if="isLoss" class="field">{{ mode === 'dead' ? 'สาเหตุการตาย' : 'เหตุผลที่คัดทิ้ง' }} (จำเป็น)
+          <select v-model="form.cause" required aria-required="true">
+            <option disabled value="">เลือกสาเหตุ</option>
+            <option :value="unknownCause">{{ unknownCause }}</option>
             <option v-for="cause in lossCauses[mode]" :key="cause">{{ cause }}</option>
           </select>
         </label>
@@ -247,6 +249,7 @@ onBeforeUnmount(() => { generation++; });
         </label>
       </fieldset>
       <p v-if="remaining < 0" class="error" role="alert">จำนวน{{ activeModeLabel }}เกินยอดไก่คงเหลือ</p>
+      <p v-if="isLoss && form.count > 0 && !form.cause.trim()" class="error" role="alert">กรุณาระบุสาเหตุการตายหรือการคัดทิ้งก่อนบันทึก</p>
       <div class="balance" aria-live="polite">
         <span>ไก่คงเหลือหลังบันทึก</span><strong>{{ remaining >= 0 ? number.format(remaining) + ' ตัว' : '—' }}</strong>
       </div>
@@ -336,13 +339,6 @@ h2 { font-size: 1.25rem; font-weight: 700; }
 .new-event { display: inline-flex; align-items: center; gap: .4rem; }
 .house-picker { min-width: 0; margin-bottom: 1.25rem; }
 .house-picker legend { margin-bottom: .65rem; font-weight: 600; }
-.house-cards {
-  display: flex;
-  gap: .75rem;
-  overflow-x: auto;
-  padding: .25rem .25rem .6rem;
-}
-.house-cards .choice { flex: 0 0 min(13.5rem, 80%); }
 .choice { position: relative; display: block; cursor: pointer; }
 .choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .choice input:focus-visible + span { outline: 2px solid #475830; outline-offset: 2px; }
