@@ -39,8 +39,8 @@ const visible = ref(false);
         class="flex min-h-10 w-10 items-center justify-center rounded-lg text-[#8b9a74] focus-visible:outline-2 focus-visible:outline-[#a76a00]"
         @click="visible = !visible"
       >
-        <EyeOff v-if="visible" :size="16" aria-hidden="true" />
-        <Eye v-else :size="16" aria-hidden="true" />
+        <Eye v-if="visible" :size="16" aria-hidden="true" />
+        <EyeOff v-else :size="16" aria-hidden="true" />
       </button>
     </template>
   </BaseInput>
