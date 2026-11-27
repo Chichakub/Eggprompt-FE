@@ -2,7 +2,7 @@
 import { watch } from 'vue';
 import { ChevronDown } from 'lucide-vue-next';
 const model = defineModel({ required:true });
-const props = defineProps({ breeds:{type:Array,default:()=>[]}, houses:{type:Array,default:()=>[]}, disabled:Boolean, showCode:{type:Boolean,default:true} });
+const props = defineProps({ breeds:{type:Array,default:()=>[]}, houses:{type:Array,default:()=>[]}, disabled:Boolean });
 watch(() => props.breeds, breeds => {
   model.value.breedId = breeds[0]?.breedId ?? '';
 }, { immediate:true });
@@ -11,7 +11,7 @@ const today = new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Bangkok'});
 <template>
   <fieldset class="flock-fields" :disabled="disabled">
     <h2>ข้อมูลฝูงไก่</h2>
-    <label v-if="showCode">รหัสฝูง <em>*</em><input v-model="model.flockCode" required maxlength="50" pattern="[A-Za-z0-9._\-]+" placeholder="เช่น F69-01" /></label>
+    <label>รหัสฝูง <em>*</em><input v-model="model.flockCode" required maxlength="50" pattern="[A-Za-z0-9._\-]+" placeholder="เช่น F69-01" /></label>
     <label>สายพันธุ์และที่มา <em>*</em><input value="Hy-Line Brown (ไฮไลน์บราวน์)" readonly aria-readonly="true" /></label>
     <label>ผู้จำหน่ายไก่ <em>*</em><input v-model="model.supplier" required maxlength="255" placeholder="เช่น ฟาร์มแม่ไก่สาว นครปฐม" /></label>
     <label>เลขที่ใบรับรองสุขภาพ<input v-model="model.healthCertificate" maxlength="100" /></label>
