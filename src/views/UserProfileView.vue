@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
 import { Check, SquarePen, X } from 'lucide-vue-next';
+import { validateProfile } from '@/composables/profileValidation';
 import { userService } from '@/services/userService';
 import { useModalStore } from '@/stores/modalStore';
 import ProfileCard from '@/components/profile/ProfileCard.vue';
@@ -19,8 +20,6 @@ const saveError = ref('');
 const draft = reactive({ fullName: '', email: '', phone: '' });
 const errors = reactive({ fullName: '', email: '', phone: '' });
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^0\d{8,9}$/; // เบอร์ไทย 9–10 หลัก (ตัด - และเว้นวรรคก่อนตรวจ)
 
 async function loadProfile() {
   loading.value = true;
@@ -65,18 +64,7 @@ function updateField(key, value) {
 
 function validate() {
   clearErrors();
-  const email = draft.email.trim();
-  const phone = draft.phone.replace(/[\s-]/g, '');
-
-  if (!draft.fullName.trim()) errors.fullName = 'กรุณากรอกชื่อ - สกุล';
-  else if (draft.fullName.trim().length > 255) errors.fullName = 'ชื่อ - สกุลต้องไม่เกิน 255 ตัวอักษร';
-
-  if (!email) errors.email = 'กรุณากรอกอีเมล';
-  else if (!EMAIL_RE.test(email)) errors.email = 'รูปแบบอีเมลไม่ถูกต้อง';
-
-  if (!phone) errors.phone = 'กรุณากรอกเบอร์โทรศัพท์';
-  else if (!PHONE_RE.test(phone)) errors.phone = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
-
+  Object.assign(errors, validateProfile(draft, profile.value?.role));
   return !Object.values(errors).some(Boolean);
 }
 

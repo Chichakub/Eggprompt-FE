@@ -31,7 +31,8 @@ const status = computed(
         <CircleUser v-else :size="126" :stroke-width="1.4" />
       </div>
 
-      <h2 class="name">{{ profile?.fullName ?? '—' }}</h2>
+      <h2 class="name">{{ loading ? 'กำลังโหลด…' : profile?.fullName?.trim() || 'ยังไม่ได้กรอกชื่อ–นามสกุล' }}</h2>
+      <p v-if="!loading && !profile?.fullName?.trim()" class="name-hint">กรอกชื่อ–นามสกุลในหน้าแก้ไข เพื่อแสดงชื่อของคุณที่นี่</p>
       <p class="code">ID: {{ profile?.employeeCode ?? '—' }}</p>
 
       <div class="badges">
@@ -42,10 +43,7 @@ const status = computed(
       </div>
     </div>
 
-    <div class="position">
-      <span class="position-label">ตำแหน่งปัจจุบัน:</span>
-      <strong class="position-value">{{ profile?.positionShort ?? profile?.position ?? '—' }}</strong>
-    </div>
+
   </section>
 </template>
 
@@ -96,6 +94,7 @@ const status = computed(
   font-weight: 700;
   color: var(--pc-ink);
 }
+.name-hint { margin: 4px 0 14px; font-size: 12px; line-height: 1.6; color: #727a67; }
 .code {
   margin: 0 0 14px;
   font-size: 12px;
@@ -144,24 +143,5 @@ const status = computed(
   color: #6b7280;
   border-color: #d1d5db;
   background: #f3f4f6;
-}
-
-.position {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px solid var(--pc-line);
-  font-size: 12px;
-}
-.position-label {
-  color: #6b7280;
-  white-space: nowrap;
-}
-.position-value {
-  color: var(--pc-ink);
-  text-align: right;
 }
 </style>

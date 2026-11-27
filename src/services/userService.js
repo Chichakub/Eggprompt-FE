@@ -20,7 +20,6 @@ export function toProfile(raw) {
     email: raw.email,
     phone: raw.phoneNumber, 
     username: raw.username,
-    position: raw.position,
     avatarUrl: null, // ยังไม่มีคอลัมน์รูปโปรไฟล์ใน DB → ใช้ไอคอนเริ่มต้น
   };
 }

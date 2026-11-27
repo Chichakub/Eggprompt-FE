@@ -1,7 +1,9 @@
 <script setup>
-import { Building2, Mail, Phone, User } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { profileEmailRequired } from '@/composables/profileValidation';
+import { Mail, Phone, User } from 'lucide-vue-next';
 
-defineProps({
+const props = defineProps({
   profile: { type: Object, default: null },
   loading: { type: Boolean, default: false },
   editing: { type: Boolean, default: false },
@@ -11,6 +13,7 @@ defineProps({
 
 defineEmits(['change-password', 'update-field', 'submit']);
 
+const emailRequired = computed(() => profileEmailRequired(props.profile?.role));
 const PASSWORD_MASK = '••••••••••••';
 </script>
 
@@ -30,6 +33,7 @@ const PASSWORD_MASK = '••••••••••••';
         <div class="control">
           <input
             id="pf-name"
+            placeholder="กรอกชื่อและนามสกุล"
             type="text"
             maxlength="255"
             :value="editing ? draft.fullName : (profile?.fullName ?? '')"
@@ -52,10 +56,13 @@ const PASSWORD_MASK = '••••••••••••';
 
       <!-- อีเมล -->
       <div class="field">
-        <label for="pf-email">อีเมล (Email) <b class="req">*</b></label>
+        <label for="pf-email">อีเมล (Email) <b v-if="emailRequired" class="req">*</b><span v-else class="optional"> (ไม่บังคับ)</span></label>
         <div class="control">
           <input
             id="pf-email"
+            :required="emailRequired"
+            :aria-required="emailRequired"
+            :aria-describedby="!emailRequired ? 'pf-email-hint' : undefined"
             type="email"
             maxlength="255"
             :value="editing ? draft.email : (profile?.email ?? '')"
@@ -65,6 +72,7 @@ const PASSWORD_MASK = '••••••••••••';
           />
           <Mail class="icon" :size="16" />
         </div>
+        <p v-if="!emailRequired" id="pf-email-hint" class="hint">พนักงานเว้นอีเมลได้ หากเพิ่มอีเมลจะใช้รับลิงก์รีเซ็ตรหัสผ่านได้</p>
         <p v-if="errors.email" class="err" role="alert">{{ errors.email }}</p>
       </div>
 
@@ -107,13 +115,7 @@ const PASSWORD_MASK = '••••••••••••';
         </div>
       </div>
 
-      <div class="field full">
-        <label for="pf-position">ตำแหน่ง</label>
-        <div class="control">
-          <input id="pf-position" type="text" :value="profile?.position ?? ''" disabled />
-          <Building2 class="icon" :size="16" />
-        </div>
-      </div>
+
     </form>
   </section>
 </template>
@@ -156,6 +158,7 @@ label {
   font-size: 12px;
   color: #3b4a2a;
 }
+.hint, .optional { margin: 0; font-size: 12px; line-height: 1.5; color: #727a67; }
 .req {
   color: #e5484d;
   font-weight: 400;
